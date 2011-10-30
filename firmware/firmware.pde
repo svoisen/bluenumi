@@ -22,7 +22,8 @@
  ******************************************************************************/
  
 #include <avr/interrupt.h> // Used for adding interrupts
-#include "DS1307RTC.h" // Used for communicating with RTC
+#include "Wire.h" // Used for communicating with RTC
+#include "DS1307RTC.h" // Ditto
 
 /*******************************************************************************
  * Pin Mappings
@@ -61,6 +62,14 @@
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
 /*******************************************************************************
+ * Debug Defines
+ /*****************************************************************************/
+#define DEBUG true
+#if DEBUG
+#define DEBUG_BAUD 9600
+#endif
+
+/*******************************************************************************
  * Time/Alarm Variables
  /*****************************************************************************/
 unsigned int alarmHours, alarmMinutes = 0; // Variables that store when to set off the alarm!
@@ -79,51 +88,59 @@ volatile unsigned long alarmSetButtonPressTime = 0; // Keeps track of when alarm
  */
 void setup()
 {
+#if DEBUG
+Serial.begin(DEBUG_BAUD);
+Serial.println("Bluenumi");
+Serial.println("Firmware Version 001");
+#endif
+ 
   // Set up pin modes
-  pinMode( SECONDS0_PIN, OUTPUT );
-  pinMode( SECONDS1_PIN, OUTPUT );
-  pinMode( SECONDS2_PIN, OUTPUT );
-  pinMode( SECONDS3_PIN, OUTPUT );
-  pinMode( DATA_PIN, OUTPUT );
-  pinMode( LATCH_PIN, OUTPUT );
-  pinMode( CLK_PIN, OUTPUT );
-  pinMode( OE_PIN, OUTPUT );
-  pinMode( AMPM_PIN, OUTPUT );
-  pinMode( ALRM_PIN, OUTPUT );
-  pinMode( PIEZO_PIN, OUTPUT );
-  pinMode( HZ_PIN, INPUT );
-  pinMode( LEFT_BTN_PIN, INPUT );
-  pinMode( RIGHT_BTN_PIN, INPUT );
-  
+  pinMode(SECONDS0_PIN, OUTPUT);
+  pinMode(SECONDS1_PIN, OUTPUT);
+  pinMode(SECONDS2_PIN, OUTPUT);
+  pinMode(SECONDS3_PIN, OUTPUT);
+  pinMode(DATA_PIN, OUTPUT);
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(CLK_PIN, OUTPUT);
+  pinMode(OE_PIN, OUTPUT);
+  pinMode(AMPM_PIN, OUTPUT);
+  pinMode(ALRM_PIN, OUTPUT);
+  pinMode(PIEZO_PIN, OUTPUT);
+  pinMode(HZ_PIN, INPUT);
+  pinMode(LEFT_BTN_PIN, INPUT);
+  pinMode(RIGHT_BTN_PIN, INPUT);
+ 
   // Pull-up resistors for buttons and DS1307 square wave
-  digitalWrite( HZ_PIN, HIGH );
-  digitalWrite( LEFT_BTN_PIN, HIGH );
-  digitalWrite( RIGHT_BTN_PIN, HIGH );
+  digitalWrite(HZ_PIN, HIGH);
+  digitalWrite(LEFT_BTN_PIN, HIGH);
+  digitalWrite(RIGHT_BTN_PIN, HIGH);
   
   // Enable output
-  digitalWrite( OE_PIN, LOW );
+  digitalWrite(OE_PIN, LOW);
   
   // Set up interrupts
-  attachInterrupt( 0, leftButtonPressed, LOW );
-  attachInterrupt( 1, rightButtonPressed, LOW );
+  //attachInterrupt(0, leftButtonPressed, LOW);
+  //attachInterrupt(1, rightButtonPressed, LOW);
   
   // Arduino environment has only 2 interrupts, here we add a 3rd interrupt on Arduino digital pin 4 (PCINT20 XCK/TO)
   // This interrupt will be used to interface with the DS1307RTC square wave, and will be called every second (1Hz)
   PCICR |= (1 << PCIE2);
   PCMSK2 |= (1 << PCINT20);
   interrupts();
-  
+
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
-  //if( !DS1307RTC.isRunning() ) {
+  if (!DS1307RTC.isRunning()) 
+  {
+#if DEBUG
+Serial.println("RTC not running; switching to set time mode");
+#endif
     // Clock is not running, probably powering up for the first time, change mode to set time
     //mode = SET_TIME_MODE;
-    DS1307RTC.setDateTime( 0, 0, 12, 1, 1, 1, 10, true, true, true, 0x10);
-  //}
-  
-  Serial.begin(9600);
+    DS1307RTC.setDateTime(0, 0, 12, 1, 1, 1, 10, true, true, true, 0x10);
+  }
 }
 
 /**
@@ -133,17 +150,18 @@ void setup()
 void loop()
 {
   // Take care of any button presses first
-  if( setTimeButtonPressTime > 0 ) {
+  if (timeSetButtonPressTime > 0)
     handleTimeButtonPress();
-  }
   
-  if( setAlarmButtonPress > 0 ) {
+  if (alarmSetButtonPressTime > 0)
     handleAlarmButtonPress();
-  }
   
-  switch( mode ) {
+  switch (mode) 
+  {
     case RUN_MODE:
-      if( updateDisplay ) { // Only update time display as necessary
+      if (updateDisplay) 
+      { 
+        // Only update time display as necessary
         fetchAndOutputTime();
         updateDisplay = false;
       }
@@ -153,9 +171,12 @@ void loop()
       break;
       
     case SET_TIME_MODE:
-      if( updateBlink() ) { // Returns true when time display should be shown
+      if (updateBlink()) 
+      { 
+        
       }
-      else {
+      else 
+      {
         blankDisplay();
       }
       break;
@@ -173,7 +194,8 @@ boolean updateBlink()
 {
   static unsigned long lastBlinkTime = 0;
   static boolean blinkOn = true;
-  if( millis() - lastBlinkTime >= BLINK_DELAY ) {
+  if (millis() - lastBlinkTime >= BLINK_DELAY) 
+  {
     blinkOn = !blinkOn;
     lastBlinkTime = millis();
   }
@@ -185,18 +207,28 @@ boolean updateBlink()
  */
 void fetchAndOutputTime()
 {
+#if DEBUG
+Serial.println("Fetching time from RTC");
+#endif
   byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
   bool twelveHourMode, ampm;
-  DS1307RTC.getDateTime( &second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year, &twelveHourMode, &ampm );
+  DS1307RTC.getDateTime(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year, &twelveHourMode, &ampm);
+
+#if DEBUG
+Serial.print("Got time from RTC: ");
+Serial.print(hour, DEC);
+Serial.print(":");
+Serial.println(minute, DEC);
+#endif
   
-  digitalWrite( LATCH_PIN, LOW );
-  shiftOut( DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour/10] );
-  shiftOut( DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour%10] );
-  shiftOut( DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute/10] );
-  shiftOut( DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute%10] );
-  digitalWrite( LATCH_PIN, HIGH );
+  digitalWrite(LATCH_PIN, LOW);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour/10]);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour%10]);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute/10]);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute%10]);
+  digitalWrite(LATCH_PIN, HIGH);
   
-  digitalWrite( AMPM_PIN, (ampm ? HIGH : LOW) ); // Also output AMPM indicator light
+  digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); // Also output AMPM indicator light
 }
 
 void leftButtonPressed()
@@ -236,7 +268,7 @@ void handleTimeButtonPress()
   boolean longPress = false;
   
   while( digitalRead( LEFT_BTN_PIN ) == LOW ) {
-    if( millis() - timeButtonPressTime >= LONG_PRESS ) {
+    if( millis() - timeSetButtonPressTime >= LONG_PRESS ) {
       longPress = true;
     }
   }
@@ -258,7 +290,7 @@ void handleTimeButtonPress()
       break;
   }
   
-  timeButtonPressTime = 0;
+  timeSetButtonPressTime = 0;
 }
 
 void handleAlarmButtonPress()
@@ -266,7 +298,7 @@ void handleAlarmButtonPress()
   boolean longPress = false;
   
   while( digitalRead( RIGHT_BTN_PIN ) == LOW ) {
-    if( millis() - alarmButtonPressTime >= LONG_PRESS ) {
+    if( millis() - alarmSetButtonPressTime >= LONG_PRESS ) {
       longPress = true;
     }
   }
@@ -298,12 +330,13 @@ void blankDisplay()
  * This interrupt will be called every time the DS1307 square wave pin changes. At 1Hz this means
  * 2 changes per second (high to low, low to high).
  */
-ISR( PCINT2_vect )
+ISR (PCINT2_vect)
 {
   // Instead of digitalRead, we'll read the port directly for Arduino digital pin 4 (which resides in PORTD)
   // This keeps the execution time of the interrupt a bit shorter
   // Here, we look for when pin 4 (4th bit in PIND) is pulled low (value == 0), meaning 1 second has passed
-  if( (PIND & 0x10) == 0 ) {
+  if ((PIND & 0x10) == 0) 
+  {
     // TICK! Update the time!
     updateDisplay = true;
   }
