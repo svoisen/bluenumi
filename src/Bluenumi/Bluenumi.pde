@@ -53,6 +53,10 @@
 #define RUN_BLANK_MODE 1
 #define SET_TIME_MODE 2
 #define SET_ALARM_MODE 3
+#define SET_TIME_HR10 4
+#define SET_TIME_HR1 5
+#define SET_TIME_MIN10 6
+#define SET_TIME_MIN1 7
 
 /*******************************************************************************
  * Misc Defines
@@ -138,7 +142,7 @@ Serial.println("Firmware Version 001");
 Serial.println("RTC not running; switching to set time mode");
 #endif
     // Clock is not running, probably powering up for the first time, change mode to set time
-    //mode = SET_TIME_MODE;
+    changeMode(SET_TIME_MODE);
     DS1307RTC.setDateTime(0, 0, 12, 1, 1, 1, 10, true, true, true, 0x10);
   }
 }
@@ -159,30 +163,51 @@ void loop()
   switch (mode) 
   {
     case RUN_MODE:
-      if (updateDisplay) 
-      { 
-        // Only update time display as necessary
-        fetchAndOutputTime();
-        updateDisplay = false;
-      }
+      handleRunMode();
       break;
     
     case RUN_BLANK_MODE:
       break;
       
     case SET_TIME_MODE:
-      if (updateBlink()) 
-      { 
-        
-      }
-      else 
-      {
-        blankDisplay();
-      }
       break;
       
     case SET_ALARM_MODE:
       break;
+  }
+}
+
+void changeMode(byte newMode)
+{
+  switch(mode)
+  {
+    case SET_TIME_MODE:
+      break;
+  }
+
+  mode = newMode;
+}
+
+void handleRunMode()
+{
+  if (updateDisplay) 
+  { 
+    // Only update time display as necessary
+    outputTime();
+    updateDisplay = false;
+  }
+}
+
+void handleSetTimeMode()
+{
+  // updateBlink() will be true when time should be displayed
+  if (updateBlink()) 
+  { 
+        
+  }
+  else 
+  {
+    blankDisplay();
   }
 }
 
@@ -194,18 +219,20 @@ boolean updateBlink()
 {
   static unsigned long lastBlinkTime = 0;
   static boolean blinkOn = true;
+
   if (millis() - lastBlinkTime >= BLINK_DELAY) 
   {
     blinkOn = !blinkOn;
     lastBlinkTime = millis();
   }
+
   return blinkOn;
 }
 
 /**
  * Fetches the time from the DS1307 RTC and displays the time on the numitrons.
  */
-void fetchAndOutputTime()
+void outputTime()
 {
 #if DEBUG
 Serial.println("Fetching time from RTC");
@@ -236,9 +263,8 @@ void leftButtonPressed()
   static unsigned long lastInterruptTime = 0;
   unsigned long interruptTime = millis();
   
-  if( interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL ) {
+  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
     timeSetButtonPressTime = interruptTime;
-  }
   
   lastInterruptTime = interruptTime;
 }
@@ -248,9 +274,8 @@ void rightButtonPressed()
   static unsigned long lastInterruptTime = 0;
   unsigned long interruptTime = millis();
   
-  if( interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL ) {
+  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
     alarmSetButtonPressTime = interruptTime;
-  }
   
   lastInterruptTime = interruptTime;
 }
@@ -267,25 +292,28 @@ void handleTimeButtonPress()
 {
   boolean longPress = false;
   
-  while( digitalRead( LEFT_BTN_PIN ) == LOW ) {
-    if( millis() - timeSetButtonPressTime >= LONG_PRESS ) {
+  while (digitalRead(LEFT_BTN_PIN) == LOW) 
+  {
+    if (millis() - timeSetButtonPressTime >= LONG_PRESS) 
       longPress = true;
-    }
   }
   
-  switch( mode ) {
+  switch( mode ) 
+  {
     case RUN_MODE:
-      if( longPress ) {
-        mode = SET_TIME_MODE;
-      }
+      if (longPress) 
+        changeMode(SET_TIME_MODE);
+
       break;
       
     case SET_TIME_MODE:
-      if( longPress ) {
-        // Save new time in DS1307
-        mode = RUN_MODE;
+      if (longPress) 
+      {
+        // TODO: Save new time in DS1307
+        changeMode(RUN_MODE);
       }
-      else {
+      else 
+      {
       }
       break;
   }
@@ -297,33 +325,34 @@ void handleAlarmButtonPress()
 {
   boolean longPress = false;
   
-  while( digitalRead( RIGHT_BTN_PIN ) == LOW ) {
-    if( millis() - alarmSetButtonPressTime >= LONG_PRESS ) {
+  while (digitalRead(RIGHT_BTN_PIN) == LOW) 
+  {
+    if (millis() - alarmSetButtonPressTime >= LONG_PRESS) 
       longPress = true;
-    }
   }
   
-  switch( mode ) {
+  switch( mode ) 
+  {
     case RUN_MODE:
-      if( longPress ) {
-        mode = SET_ALARM_MODE;
-      }
+      if (longPress) 
+        changeMode(SET_ALARM_MODE);
+
       break;
   }
 }
 
 /**
- * Blanks the display, both numitrons and all LEDs.
+ * Blanks the entire display, both numitrons and all LEDs.
  */
 void blankDisplay()
 {
-  digitalWrite( OE_PIN, HIGH );
-  digitalWrite( SECONDS0_PIN, LOW );
-  digitalWrite( SECONDS1_PIN, LOW );
-  digitalWrite( SECONDS2_PIN, LOW );
-  digitalWrite( SECONDS3_PIN, LOW );
-  digitalWrite( AMPM_PIN, LOW );
-  digitalWrite( ALRM_PIN, LOW );
+  digitalWrite(OE_PIN, HIGH);
+  digitalWrite(SECONDS0_PIN, LOW);
+  digitalWrite(SECONDS1_PIN, LOW);
+  digitalWrite(SECONDS2_PIN, LOW);
+  digitalWrite(SECONDS3_PIN, LOW);
+  digitalWrite(AMPM_PIN, LOW);
+  digitalWrite(ALRM_PIN, LOW);
 }
 
 /**
