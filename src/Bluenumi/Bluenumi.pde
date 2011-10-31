@@ -1,10 +1,9 @@
 /*******************************************************************************
- * Gizmologist Bluenumi Clock Firmware
- * Version 1.0
+ * Bluenumi Clock Firmware
+ * Version 001
  *
- * Copyright (C) 2010 Gizmologist, LLC. All rights reserved.
- * Author: Sean Voisen
- * Last Modified: 12/31/2009
+ * Copyright (C) Sean Voisen. All rights reserved.
+ * Last Modified: 10/30/2011
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
