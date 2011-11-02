@@ -2,8 +2,8 @@
  * Bluenumi Clock Firmware
  * Version 001
  *
- * Copyright (C) Sean Voisen. All rights reserved.
- * Last Modified: 10/30/2011
+ * Copyright (C) Sean Voisen <http://sean.voisen.org> 
+ * All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -87,6 +87,9 @@ byte mode = RUN_MODE; // Default to run mode
 volatile unsigned long timeSetButtonPressTime = 0; // Keeps track of when time (left) button was pressed
 volatile unsigned long alarmSetButtonPressTime = 0; // Keeps track of when alarm (right) button was pressed
 
+typedef void (*modeHandler)();
+modeHandler modeHandlerMap[8] = {NULL};
+
 /**
  * Sets up the program before running the continuous loop()
  */
@@ -132,6 +135,10 @@ Serial.println("Firmware Version 001");
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();
   
+  // Set up mode handlers
+  modeHandlerMap[RUN_MODE] = &handleRunMode;
+  modeHandlerMap[SET_TIME_MODE] = &handleSetTimeMode;
+  
   // Check CH bit in DS1307, if it's 1 then the clock is not started
   //if (!DS1307RTC.isRunning()) 
   {
@@ -157,22 +164,7 @@ void loop()
   if (alarmSetButtonPressTime > 0)
     handleAlarmButtonPress();
   
-  switch (mode) 
-  {
-    case RUN_MODE:
-      handleRunMode();
-      break;
-    
-    case RUN_BLANK_MODE:
-      break;
-      
-    case SET_TIME_MODE:
-      handleSetTimeMode();
-      break;
-      
-    case SET_ALARM_MODE:
-      break;
-  }
+  modeHandlerMap[mode]();
 }
 
 void changeMode(byte newMode)
@@ -371,6 +363,10 @@ void blankDisplay()
 void showDisplay()
 {
   digitalWrite(OE_PIN, LOW);
+  digitalWrite(SECONDS0_PIN, HIGH);
+  digitalWrite(SECONDS1_PIN, HIGH);
+  digitalWrite(SECONDS2_PIN, HIGH);
+  digitalWrite(SECONDS3_PIN, HIGH);
 }
 
 /**
