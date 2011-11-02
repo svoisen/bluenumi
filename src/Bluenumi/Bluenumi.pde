@@ -39,8 +39,8 @@
 #define ALRM_PIN 1 // Both TX and used for alarm indicator LED
 #define PIEZO_PIN 8 // Piezo alarm
 #define HZ_PIN 4 // 1 Hz pulse from DS1307 RTC
-#define LEFT_BTN_PIN 2 // Time set/left button
-#define RIGHT_BTN_PIN 5 // Alarm set/right button
+#define TIME_BTN_PIN 5 // Time set/left button
+#define ALRM_BTN_PIN 2 // Alarm set/right button
 
 #define SDA_PIN 4 // Analog pin, used for 2wire communication to DS1307
 #define SCL_PIN 5 // Analog pin, used for 2wire communicatino to DS1307
@@ -75,7 +75,8 @@
 /*******************************************************************************
  * Time/Alarm Variables
  /*****************************************************************************/
-unsigned int alarmHours, alarmMinutes = 0; // Variables that store when to set off the alarm!
+byte alarmHours, alarmMinutes, timeSetHours, timeSetMinutes = 0;
+bool timeSetAmPm = false;
 
 /*******************************************************************************
  * Misc Variables
@@ -110,32 +111,29 @@ Serial.println("Firmware Version 001");
   pinMode(ALRM_PIN, OUTPUT);
   pinMode(PIEZO_PIN, OUTPUT);
   pinMode(HZ_PIN, INPUT);
-  pinMode(LEFT_BTN_PIN, INPUT);
-  pinMode(RIGHT_BTN_PIN, INPUT);
+  pinMode(TIME_BTN_PIN, INPUT);
+  pinMode(ALRM_BTN_PIN, INPUT);
  
   // Pull-up resistors for buttons and DS1307 square wave
   digitalWrite(HZ_PIN, HIGH);
-  digitalWrite(LEFT_BTN_PIN, HIGH);
-  digitalWrite(RIGHT_BTN_PIN, HIGH);
+  digitalWrite(TIME_BTN_PIN, HIGH);
+  digitalWrite(ALRM_BTN_PIN, HIGH);
   
   // Enable output
   digitalWrite(OE_PIN, LOW);
   
-  // Set up interrupts
-  //attachInterrupt(0, leftButtonPressed, LOW);
-  //attachInterrupt(1, rightButtonPressed, LOW);
-  
   // Arduino environment has only 2 interrupts, here we add a 3rd interrupt on Arduino digital pin 4 (PCINT20 XCK/TO)
   // This interrupt will be used to interface with the DS1307RTC square wave, and will be called every second (1Hz)
   PCICR |= (1 << PCIE2);
-  PCMSK2 |= (1 << PCINT20);
-  interrupts();
+  PCMSK2 |= (1 << PCINT18); // Alarm button
+  PCMSK2 |= (1 << PCINT20); // RTC square wave
+  PCMSK2 |= (1 << PCINT21); // Time button
 
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
-  if (!DS1307RTC.isRunning()) 
+  //if (!DS1307RTC.isRunning()) 
   {
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
@@ -169,6 +167,7 @@ void loop()
       break;
       
     case SET_TIME_MODE:
+      handleSetTimeMode();
       break;
       
     case SET_ALARM_MODE:
@@ -181,6 +180,7 @@ void changeMode(byte newMode)
   switch(mode)
   {
     case SET_TIME_MODE:
+      fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
       break;
   }
 
@@ -202,7 +202,7 @@ void handleSetTimeMode()
   // updateBlink() will be true when time should be displayed
   if (updateBlink()) 
   { 
-        
+    showDisplay();
   }
   else 
   {
@@ -228,17 +228,23 @@ boolean updateBlink()
   return blinkOn;
 }
 
+bool fetchTime(byte* hour, byte* minute, bool* ampm)
+{
+  byte second, dayOfWeek, dayOfMonth, month, year;
+  bool twelveHourMode;
+  DS1307RTC.getDateTime(&second, minute, hour, &dayOfWeek, &dayOfMonth, &month, &year, &twelveHourMode, ampm);
+  
+  return true;
+}
+
 /**
  * Fetches the time from the DS1307 RTC and displays the time on the numitrons.
  */
 void outputTime()
 {
-#if DEBUG
-Serial.println("Fetching time from RTC");
-#endif
-  byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
-  bool twelveHourMode, ampm;
-  DS1307RTC.getDateTime(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year, &twelveHourMode, &ampm);
+  byte minute, hour;
+  bool ampm;
+  fetchTime(&hour, &minute, &ampm);
 
 #if DEBUG
 Serial.print("Got time from RTC: ");
@@ -257,7 +263,7 @@ Serial.println(minute, DEC);
   digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); // Also output AMPM indicator light
 }
 
-void leftButtonPressed()
+void timeButtonPressed()
 {
   static unsigned long lastInterruptTime = 0;
   unsigned long interruptTime = millis();
@@ -268,7 +274,7 @@ void leftButtonPressed()
   lastInterruptTime = interruptTime;
 }
 
-void rightButtonPressed()
+void alarmButtonPressed()
 {
   static unsigned long lastInterruptTime = 0;
   unsigned long interruptTime = millis();
@@ -289,9 +295,12 @@ void setAlarmReleased()
 
 void handleTimeButtonPress()
 {
+#if DEBUG
+Serial.println("Time button pressed");
+#endif
   boolean longPress = false;
   
-  while (digitalRead(LEFT_BTN_PIN) == LOW) 
+  while (digitalRead(TIME_BTN_PIN) == LOW) 
   {
     if (millis() - timeSetButtonPressTime >= LONG_PRESS) 
       longPress = true;
@@ -322,9 +331,12 @@ void handleTimeButtonPress()
 
 void handleAlarmButtonPress()
 {
+#if DEBUG
+Serial.println("Alarm button pressed");
+#endif
   boolean longPress = false;
   
-  while (digitalRead(RIGHT_BTN_PIN) == LOW) 
+  while (digitalRead(ALRM_BTN_PIN) == LOW) 
   {
     if (millis() - alarmSetButtonPressTime >= LONG_PRESS) 
       longPress = true;
@@ -338,6 +350,8 @@ void handleAlarmButtonPress()
 
       break;
   }
+  
+  alarmSetButtonPressTime = 0;
 }
 
 /**
@@ -354,19 +368,31 @@ void blankDisplay()
   digitalWrite(ALRM_PIN, LOW);
 }
 
+void showDisplay()
+{
+  digitalWrite(OE_PIN, LOW);
+}
+
 /**
- * This interrupt will be called every time the DS1307 square wave pin changes. At 1Hz this means
- * 2 changes per second (high to low, low to high).
+ * This interrupt will be called every time the DS1307 square wave pin changes or a button is pressed. 
+ * For the RTC, at 1Hz this means this will be called twice per second (high to low, low to high).
  */
 ISR (PCINT2_vect)
 {
   // Instead of digitalRead, we'll read the port directly for Arduino digital pin 4 (which resides in PORTD)
   // This keeps the execution time of the interrupt a bit shorter
+  
+  // Check for RTC square wave low
   // Here, we look for when pin 4 (4th bit in PIND) is pulled low (value == 0), meaning 1 second has passed
   if ((PIND & 0x10) == 0) 
-  {
-    // TICK! Update the time!
     updateDisplay = true;
-  }
+  
+  // Check for time button press (pulled low) on pin 5
+  if ((PIND & 0x20) == 0)
+    timeButtonPressed();
+
+  // Check for alarm button press (pulled low) on pin 2
+  if ((PIND & 0x04) == 0)
+    alarmButtonPressed();
 }
 
