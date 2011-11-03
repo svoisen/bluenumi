@@ -2,7 +2,7 @@
  * Bluenumi Clock Firmware
  * Version 001
  *
- * Copyright (C) Sean Voisen <http://sean.voisen.org> 
+ * Copyright (C) 2009-2011 Sean Voisen <http://sean.voisen.org> 
  * All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
@@ -23,10 +23,11 @@
 #include <avr/interrupt.h> // Used for adding interrupts
 #include "Wire.h" // Used for communicating with RTC
 #include "DS1307RTC.h" // Ditto
+#include "Bluenumi.h"
 
 /*******************************************************************************
  * Pin Mappings
- /*****************************************************************************/
+ ******************************************************************************/
 #define SECONDS0_PIN 9 // LED under 10s hour
 #define SECONDS1_PIN 10 // LED under 1s hour
 #define SECONDS2_PIN 11 // LED under 10s minute
@@ -46,49 +47,43 @@
 #define SCL_PIN 5 // Analog pin, used for 2wire communicatino to DS1307
 
 /*******************************************************************************
- * Mode Defines
- /*****************************************************************************/
-#define RUN_MODE 0
-#define RUN_BLANK_MODE 1
-#define SET_TIME_MODE 2
-#define SET_ALARM_MODE 3
-#define SET_TIME_HR10 4
-#define SET_TIME_HR1 5
-#define SET_TIME_MIN10 6
-#define SET_TIME_MIN1 7
-
-/*******************************************************************************
  * Misc Defines
- /*****************************************************************************/
+ ******************************************************************************/
 #define DEBOUNCE_INTERVAL 20 // Interval to wait when debouncing buttons
 #define LONG_PRESS 3000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
 /*******************************************************************************
  * Debug Defines
- /*****************************************************************************/
+ ******************************************************************************/
 #define DEBUG true
 #if DEBUG
 #define DEBUG_BAUD 9600
 #endif
 
 /*******************************************************************************
- * Time/Alarm Variables
- /*****************************************************************************/
+ * Variables
+ ******************************************************************************/
 byte alarmHours, alarmMinutes, timeSetHours, timeSetMinutes = 0;
 bool timeSetAmPm = false;
 
-/*******************************************************************************
- * Misc Variables
- /*****************************************************************************/
-const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124};  // Array translates BCD to 7-segment output
-volatile boolean updateDisplay = true; // Set to true when time display needs updating
-byte mode = RUN_MODE; // Default to run mode
-volatile unsigned long timeSetButtonPressTime = 0; // Keeps track of when time (left) button was pressed
-volatile unsigned long alarmSetButtonPressTime = 0; // Keeps track of when alarm (right) button was pressed
+// Array translates BCD to 7-segment output
+const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124};  
 
-typedef void (*modeHandler)();
-modeHandler modeHandlerMap[8] = {NULL};
+// Set to true when time display needs updating
+volatile boolean updateDisplay = true; 
+
+// Default to run mode
+enum Mode currentMode = RUN;
+
+// Keeps track of when time (left) button was pressed
+volatile unsigned long timeSetButtonPressTime = 0;
+
+// Keeps track of when alarm (right) button was pressed
+volatile unsigned long alarmSetButtonPressTime = 0; 
+
+// Function pointers for state machine handler functions
+ModeHandler modeHandlerMap[8] = {NULL};
 
 /**
  * Sets up the program before running the continuous loop()
@@ -122,7 +117,7 @@ Serial.println("Firmware Version 001");
   digitalWrite(TIME_BTN_PIN, HIGH);
   digitalWrite(ALRM_BTN_PIN, HIGH);
   
-  // Enable output
+  // Enable output to numitrons
   digitalWrite(OE_PIN, LOW);
   
   // Arduino environment has only 2 interrupts, here we add a 3rd interrupt on Arduino digital pin 4 (PCINT20 XCK/TO)
@@ -135,9 +130,7 @@ Serial.println("Firmware Version 001");
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();
   
-  // Set up mode handlers
-  modeHandlerMap[RUN_MODE] = &handleRunMode;
-  modeHandlerMap[SET_TIME_MODE] = &handleSetTimeMode;
+  mapModeHandlers();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
   //if (!DS1307RTC.isRunning()) 
@@ -145,15 +138,19 @@ Serial.println("Firmware Version 001");
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
 #endif
-    // Clock is not running, probably powering up for the first time, change mode to set time
-    changeMode(SET_TIME_MODE);
+    // Clock is not running, probably powering up for the first time, change 
+    // mode to set time
+    changeMode(SET_TIME);
+
+    // Start at midnight
     DS1307RTC.setDateTime(0, 0, 12, 1, 1, 1, 10, true, true, true, 0x10);
   }
 }
 
 /**
- * This function runs continously as long as the clock is powered on. When the clock is not
- * powered on the DS1307 will continue to keep time as long as it has a battery :)
+ * This function runs continously as long as the clock is powered on. When the 
+ * clock is not powered on the DS1307 will continue to keep time as long as it 
+ * has a battery :)
  */
 void loop()
 {
@@ -164,32 +161,41 @@ void loop()
   if (alarmSetButtonPressTime > 0)
     handleAlarmButtonPress();
   
-  modeHandlerMap[mode]();
+  modeHandlerMap[currentMode]();
 }
 
-void changeMode(byte newMode)
+/**
+ * Map the various run modes to run mode handler functions
+ */
+void mapModeHandlers()
 {
-  switch(mode)
+  modeHandlerMap[RUN] = &runModeHandler;
+  modeHandlerMap[SET_TIME] = &setTimeModeHandler;
+}
+
+void changeMode(enum Mode newMode)
+{
+  switch (newMode)
   {
-    case SET_TIME_MODE:
+    case SET_TIME:
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
       break;
   }
 
-  mode = newMode;
+  currentMode = newMode;
 }
 
-void handleRunMode()
+void runModeHandler()
 {
-  if (updateDisplay) 
-  { 
-    // Only update time display as necessary
-    outputTime();
-    updateDisplay = false;
-  }
+  // Only update time display as necessary
+  if (!updateDisplay) 
+    return;
+
+  outputTime();
+  updateDisplay = false;
 }
 
-void handleSetTimeMode()
+void setTimeModeHandler()
 {
   // updateBlink() will be true when time should be displayed
   if (updateBlink()) 
@@ -203,8 +209,8 @@ void handleSetTimeMode()
 }
 
 /**
- * Used for blinking the display on and off. Determines if the display should be on (true) or off (false) using
- * a set interval BLINK_DELAY.
+ * Used for blinking the display on and off. Determines if the display should 
+ * be on (true) or off (false) using a set interval BLINK_DELAY.
  */
 boolean updateBlink()
 {
@@ -220,17 +226,22 @@ boolean updateBlink()
   return blinkOn;
 }
 
+/**
+ * Fetches the time from the DS1307 RTC.
+ */
 bool fetchTime(byte* hour, byte* minute, bool* ampm)
 {
   byte second, dayOfWeek, dayOfMonth, month, year;
   bool twelveHourMode;
-  DS1307RTC.getDateTime(&second, minute, hour, &dayOfWeek, &dayOfMonth, &month, &year, &twelveHourMode, ampm);
+  DS1307RTC.getDateTime(&second, minute, hour, &dayOfWeek, &dayOfMonth, 
+      &month, &year, &twelveHourMode, ampm);
   
   return true;
 }
 
 /**
- * Fetches the time from the DS1307 RTC and displays the time on the numitrons.
+ * Display the time on the numitrons. This will call fetchTime() to first
+ * fetch the time.
  */
 void outputTime()
 {
@@ -252,7 +263,8 @@ Serial.println(minute, DEC);
   shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute%10]);
   digitalWrite(LATCH_PIN, HIGH);
   
-  digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); // Also output AMPM indicator light
+  // Also output AMPM indicator light
+  digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); 
 }
 
 void timeButtonPressed()
@@ -298,19 +310,19 @@ Serial.println("Time button pressed");
       longPress = true;
   }
   
-  switch( mode ) 
+  switch (currentMode) 
   {
-    case RUN_MODE:
+    case RUN:
       if (longPress) 
-        changeMode(SET_TIME_MODE);
+        changeMode(SET_TIME);
 
       break;
       
-    case SET_TIME_MODE:
+    case SET_TIME:
       if (longPress) 
       {
         // TODO: Save new time in DS1307
-        changeMode(RUN_MODE);
+        changeMode(RUN);
       }
       else 
       {
@@ -334,11 +346,11 @@ Serial.println("Alarm button pressed");
       longPress = true;
   }
   
-  switch( mode ) 
+  switch (currentMode) 
   {
-    case RUN_MODE:
+    case RUN:
       if (longPress) 
-        changeMode(SET_ALARM_MODE);
+        changeMode(SET_ALARM);
 
       break;
   }
@@ -370,8 +382,9 @@ void showDisplay()
 }
 
 /**
- * This interrupt will be called every time the DS1307 square wave pin changes or a button is pressed. 
- * For the RTC, at 1Hz this means this will be called twice per second (high to low, low to high).
+ * This interrupt will be called every time the DS1307 square wave pin changes 
+ * or a button is pressed. For the RTC, at 1Hz this means this will be called 
+ * twice per second (high to low, low to high).
  */
 ISR (PCINT2_vect)
 {
