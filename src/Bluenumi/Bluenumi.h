@@ -23,6 +23,8 @@
 #ifndef BLUENUMI_h
 #define BLUENUMI_h
 
+#include "WProgram.h"
+
 enum Mode 
 {
   RUN = 0,
@@ -41,5 +43,6 @@ enum Digits
 };
 
 typedef void (*ModeHandler)();
+typedef void (*ButtonHandler)(boolean);
 
 #endif

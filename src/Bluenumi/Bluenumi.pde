@@ -21,9 +21,9 @@
  ******************************************************************************/
  
 #include <avr/interrupt.h> // Used for adding interrupts
-#include "Wire.h" // Used for communicating with RTC
-#include "DS1307RTC.h" // Ditto
-#include "Bluenumi.h"
+#include "Wire.h" // Used for communicating over I2C
+#include "DS1307RTC.h" // Library for RTC tasks
+#include "Bluenumi.h" // Custom types
 
 /*******************************************************************************
  * Pin Mappings
@@ -57,33 +57,37 @@
  * Debug Defines
  ******************************************************************************/
 #define DEBUG true
-#if DEBUG
 #define DEBUG_BAUD 9600
-#endif
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
 byte alarmHours, alarmMinutes, timeSetHours, timeSetMinutes = 0;
-bool timeSetAmPm = false;
+boolean timeSetAmPm = false;
 
 // Array translates BCD to 7-segment output
-const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124};  
+// Last value (10) used for individual numitron display blanking (setting OE 
+// HIGH will blank all numitrons)
+const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124, 0};  
 
 // Set to true when time display needs updating
-volatile boolean updateDisplay = true; 
+volatile boolean displayDirty = true; 
 
 // Default to run mode
 enum Mode currentMode = RUN;
 
-// Keeps track of when time (left) button was pressed
+// Keeps track of when time (left) button was pressed, mostly used to detect
+// long presses (this value is set during an interrupt)
 volatile unsigned long timeSetButtonPressTime = 0;
 
-// Keeps track of when alarm (right) button was pressed
+// Keeps track of when alarm (right) button was pressed, mostly used to detect
+// long presses (this value is set during an interrupt)
 volatile unsigned long alarmSetButtonPressTime = 0; 
 
 // Function pointers for state machine handler functions
-ModeHandler modeHandlerMap[8] = {NULL};
+ModeHandler modeHandlerMap[4] = {NULL};
+ButtonHandler timeButtonHandlerMap[4] = {NULL};
+ButtonHandler alarmButtonHandlerMap[4] = {NULL};
 
 /**
  * Sets up the program before running the continuous loop()
@@ -120,8 +124,9 @@ Serial.println("Firmware Version 001");
   // Enable output to numitrons
   digitalWrite(OE_PIN, LOW);
   
-  // Arduino environment has only 2 interrupts, here we add a 3rd interrupt on Arduino digital pin 4 (PCINT20 XCK/TO)
-  // This interrupt will be used to interface with the DS1307RTC square wave, and will be called every second (1Hz)
+  // The Arduino libraries do not support enough interrupts, so here we use
+  // standard AVR libc interrupt vectors for the two buttons, and the RTC
+  // square wave
   PCICR |= (1 << PCIE2);
   PCMSK2 |= (1 << PCINT18); // Alarm button
   PCMSK2 |= (1 << PCINT20); // RTC square wave
@@ -130,7 +135,9 @@ Serial.println("Firmware Version 001");
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();
   
+  // Map handlers
   mapModeHandlers();
+  mapButtonHandlers();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
   //if (!DS1307RTC.isRunning()) 
@@ -156,11 +163,12 @@ void loop()
 {
   // Take care of any button presses first
   if (timeSetButtonPressTime > 0)
-    handleTimeButtonPress();
+    processTimeButtonPress();
   
   if (alarmSetButtonPressTime > 0)
-    handleAlarmButtonPress();
+    processAlarmButtonPress();
   
+  // Call the handler function for the current mode (state)
   modeHandlerMap[currentMode]();
 }
 
@@ -171,6 +179,16 @@ void mapModeHandlers()
 {
   modeHandlerMap[RUN] = &runModeHandler;
   modeHandlerMap[SET_TIME] = &setTimeModeHandler;
+}
+
+void mapButtonHandlers()
+{
+  // Time button handlers
+  timeButtonHandlerMap[RUN] = &runModeTimeButtonHandler;
+  timeButtonHandlerMap[SET_TIME] = &setTimeModeTimeButtonHandler;
+
+  // Alarm button handlers
+  alarmButtonHandlerMap[RUN] = &runModeAlarmButtonHandler;
 }
 
 void changeMode(enum Mode newMode)
@@ -185,20 +203,27 @@ void changeMode(enum Mode newMode)
   currentMode = newMode;
 }
 
+/**
+ * Handler for run mode (normal clock operating mode). This handler simply
+ * outputs the current time when necessary.
+ */
 void runModeHandler()
 {
   // Only update time display as necessary
-  if (!updateDisplay) 
-    return;
-
-  outputTime();
-  updateDisplay = false;
+  if (displayDirty) 
+  {
+    outputCurrentTime();
+    displayDirty = false;
+  }
 }
 
+/**
+ * Handler for set time mode.
+ */
 void setTimeModeHandler()
 {
-  // updateBlink() will be true when time should be displayed
-  if (updateBlink()) 
+  // blinkShouldBeOn() will be true when time should be displayed
+  if (blinkShouldBeOn()) 
   { 
     showDisplay();
   }
@@ -209,10 +234,36 @@ void setTimeModeHandler()
 }
 
 /**
+ * Handler for time button presses when in run mode.
+ */
+void runModeTimeButtonHandler(boolean longPress)
+{
+  if (longPress)
+    changeMode(SET_TIME);
+}
+
+void runModeAlarmButtonHandler(boolean longPress)
+{
+  if (longPress)
+    changeMode(SET_ALARM);
+}
+
+void setTimeModeTimeButtonHandler(boolean longPress)
+{
+  if (longPress)
+  {
+    // TODO: Set time and return to run mode
+  }
+  else
+  {
+  }
+}
+
+/**
  * Used for blinking the display on and off. Determines if the display should 
  * be on (true) or off (false) using a set interval BLINK_DELAY.
  */
-boolean updateBlink()
+boolean blinkShouldBeOn()
 {
   static unsigned long lastBlinkTime = 0;
   static boolean blinkOn = true;
@@ -227,35 +278,35 @@ boolean updateBlink()
 }
 
 /**
- * Fetches the time from the DS1307 RTC.
+ * Display the current time on the numitrons. 
  */
-bool fetchTime(byte* hour, byte* minute, bool* ampm)
+void outputCurrentTime()
+{
+  byte minute, hour;
+  boolean ampm;
+
+  fetchTime(&hour, &minute, &ampm);
+  outputToDisplay(hour, minute, ampm);
+}
+
+/**
+ * Fetches the current time from the DS1307 RTC.
+ */
+boolean fetchTime(byte* hour, byte* minute, boolean* ampm)
 {
   byte second, dayOfWeek, dayOfMonth, month, year;
   bool twelveHourMode;
   DS1307RTC.getDateTime(&second, minute, hour, &dayOfWeek, &dayOfMonth, 
-      &month, &year, &twelveHourMode, ampm);
+      &month, &year, &twelveHourMode, (bool*)ampm);
   
   return true;
 }
 
 /**
- * Display the time on the numitrons. This will call fetchTime() to first
- * fetch the time.
+ * Outputs arbitrary values to the numitron display.
  */
-void outputTime()
+void outputToDisplay(byte hour, byte minute, boolean ampm)
 {
-  byte minute, hour;
-  bool ampm;
-  fetchTime(&hour, &minute, &ampm);
-
-#if DEBUG
-Serial.print("Got time from RTC: ");
-Serial.print(hour, DEC);
-Serial.print(":");
-Serial.println(minute, DEC);
-#endif
-  
   digitalWrite(LATCH_PIN, LOW);
   shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour/10]);
   shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour%10]);
@@ -267,41 +318,8 @@ Serial.println(minute, DEC);
   digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); 
 }
 
-void timeButtonPressed()
+void processTimeButtonPress()
 {
-  static unsigned long lastInterruptTime = 0;
-  unsigned long interruptTime = millis();
-  
-  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
-    timeSetButtonPressTime = interruptTime;
-  
-  lastInterruptTime = interruptTime;
-}
-
-void alarmButtonPressed()
-{
-  static unsigned long lastInterruptTime = 0;
-  unsigned long interruptTime = millis();
-  
-  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
-    alarmSetButtonPressTime = interruptTime;
-  
-  lastInterruptTime = interruptTime;
-}
-
-void setTimeReleased()
-{
-}
-
-void setAlarmReleased()
-{
-}
-
-void handleTimeButtonPress()
-{
-#if DEBUG
-Serial.println("Time button pressed");
-#endif
   boolean longPress = false;
   
   while (digitalRead(TIME_BTN_PIN) == LOW) 
@@ -309,31 +327,17 @@ Serial.println("Time button pressed");
     if (millis() - timeSetButtonPressTime >= LONG_PRESS) 
       longPress = true;
   }
-  
-  switch (currentMode) 
-  {
-    case RUN:
-      if (longPress) 
-        changeMode(SET_TIME);
 
-      break;
-      
-    case SET_TIME:
-      if (longPress) 
-      {
-        // TODO: Save new time in DS1307
-        changeMode(RUN);
-      }
-      else 
-      {
-      }
-      break;
-  }
+#if DEBUG
+Serial.print(longPress ? "Long" : "Short");
+Serial.println(" time button press");
+#endif
   
   timeSetButtonPressTime = 0;
+  timeButtonHandlerMap[currentMode](longPress);
 }
 
-void handleAlarmButtonPress()
+void processAlarmButtonPress()
 {
 #if DEBUG
 Serial.println("Alarm button pressed");
@@ -388,20 +392,55 @@ void showDisplay()
  */
 ISR (PCINT2_vect)
 {
-  // Instead of digitalRead, we'll read the port directly for Arduino digital pin 4 (which resides in PORTD)
+  // Instead of digitalRead, we'll read the port directly for Arduino digital 
+  // pin 2, 4 and 5 (all of which reside in PORTD)
   // This keeps the execution time of the interrupt a bit shorter
   
   // Check for RTC square wave low
-  // Here, we look for when pin 4 (4th bit in PIND) is pulled low (value == 0), meaning 1 second has passed
+  // Here, we look for when pin 4 (4th bit in PIND) is pulled low (value == 0), 
+  // meaning 1 second has passed
   if ((PIND & 0x10) == 0) 
-    updateDisplay = true;
+    displayDirty = true;
   
   // Check for time button press (pulled low) on pin 5
   if ((PIND & 0x20) == 0)
-    timeButtonPressed();
+    debounceTimeButton();
 
   // Check for alarm button press (pulled low) on pin 2
   if ((PIND & 0x04) == 0)
-    alarmButtonPressed();
+    debounceAlarmButton();
+}
+
+/**
+ * This is called during an interrupt when the time button is pressed (goes
+ * low. As such, it is intentionally kept short to minimize processing overhead
+ * in the interrupt.
+ */
+void debounceTimeButton()
+{
+  static unsigned long lastInterruptTime = 0;
+  unsigned long interruptTime = millis();
+  
+  // Once button has been debounced, record the time of the press so that a
+  // long button press can be checked later
+  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
+    timeSetButtonPressTime = interruptTime;
+  
+  lastInterruptTime = interruptTime;
+}
+
+/**
+ * This is called during an interrupt when the alarm button is pressed (goes
+ * low.)
+ */
+void debounceAlarmButton()
+{
+  static unsigned long lastInterruptTime = 0;
+  unsigned long interruptTime = millis();
+  
+  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
+    alarmSetButtonPressTime = interruptTime;
+  
+  lastInterruptTime = interruptTime;
 }
 
