@@ -26,7 +26,9 @@
 #include "Bluenumi.h" // Custom types
 
 /*******************************************************************************
+ *
  * Pin Mappings
+ *
  ******************************************************************************/
 #define SECONDS0_PIN 9 // LED under 10s hour
 #define SECONDS1_PIN 10 // LED under 1s hour
@@ -47,34 +49,43 @@
 #define SCL_PIN 5 // Analog pin, used for 2wire communicatino to DS1307
 
 /*******************************************************************************
+ *
  * Misc Defines
+ *
  ******************************************************************************/
 #define DEBOUNCE_INTERVAL 20 // Interval to wait when debouncing buttons
 #define LONG_PRESS 3000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
 /*******************************************************************************
+ *
  * Debug Defines
+ *
  ******************************************************************************/
 #define DEBUG true
 #define DEBUG_BAUD 9600
 
 /*******************************************************************************
+ *
  * Variables
+ *
  ******************************************************************************/
 byte alarmHours, alarmMinutes, timeSetHours, timeSetMinutes = 0;
+boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
+boolean alarmOn = false;
 
 // Array translates BCD to 7-segment output
-// Last value (10) used for individual numitron display blanking (setting OE 
-// HIGH will blank all numitrons)
-const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124, 0};  
+const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124};  
 
 // Set to true when time display needs updating
 volatile boolean displayDirty = true; 
 
-// Default to run mode
-enum Mode currentMode = RUN;
+// Keeps track of current run mode (RUN, SET_TIME, etc.)
+enum RunMode currentRunMode = RUN;
+
+// Keeps track of current sub-mode when setting time and alarm
+enum SetMode currentSetMode = NONE;
 
 // Keeps track of when time (left) button was pressed, mostly used to detect
 // long presses (this value is set during an interrupt)
@@ -85,13 +96,18 @@ volatile unsigned long timeSetButtonPressTime = 0;
 volatile unsigned long alarmSetButtonPressTime = 0; 
 
 // Function pointers for state machine handler functions
-ModeHandler modeHandlerMap[4] = {NULL};
-ButtonHandler timeButtonHandlerMap[4] = {NULL};
-ButtonHandler alarmButtonHandlerMap[4] = {NULL};
+ModeHandler runModeHandlerMap[NUM_RUN_MODES] = {NULL};
+ModeHandler setModeHandlerMap[NUM_SET_MODES] = {NULL};
+ButtonHandler timeButtonHandlerMap[NUM_RUN_MODES] = {NULL};
+ButtonHandler alarmButtonHandlerMap[NUM_RUN_MODES] = {NULL};
+AdvanceHandler setModeAdvanceHandlerMap[NUM_SET_MODES] = {NULL};
 
-/**
- * Sets up the program before running the continuous loop()
- */
+/*******************************************************************************
+ *
+ * Arduino "Setup" and "Loop"
+ *
+ ******************************************************************************/
+
 void setup()
 {
 #if DEBUG
@@ -138,6 +154,7 @@ Serial.println("Firmware Version 001");
   // Map handlers
   mapModeHandlers();
   mapButtonHandlers();
+  mapAdvanceHandlers();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
   //if (!DS1307RTC.isRunning()) 
@@ -145,20 +162,15 @@ Serial.println("Firmware Version 001");
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
 #endif
-    // Clock is not running, probably powering up for the first time, change 
-    // mode to set time
-    changeMode(SET_TIME);
-
     // Start at midnight
     DS1307RTC.setDateTime(0, 0, 12, 1, 1, 1, 10, true, true, true, 0x10);
+
+    // Clock is not running, probably powering up for the first time, change 
+    // mode to set time
+    changeRunMode(SET_TIME);
   }
 }
 
-/**
- * This function runs continously as long as the clock is powered on. When the 
- * clock is not powered on the DS1307 will continue to keep time as long as it 
- * has a battery :)
- */
 void loop()
 {
   // Take care of any button presses first
@@ -169,39 +181,74 @@ void loop()
     processAlarmButtonPress();
   
   // Call the handler function for the current mode (state)
-  modeHandlerMap[currentMode]();
+  runModeHandlerMap[currentRunMode]();
 }
 
+/*******************************************************************************
+ *
+ * Additional Setup
+ *
+ ******************************************************************************/
+
 /**
- * Map the various run modes to run mode handler functions
+ * Map the various run modes to run mode handler functions.
+ * Map the various set sub-modes to set mode handler functions.
  */
 void mapModeHandlers()
 {
-  modeHandlerMap[RUN] = &runModeHandler;
-  modeHandlerMap[SET_TIME] = &setTimeModeHandler;
+  runModeHandlerMap[RUN] = &runModeHandler;
+  runModeHandlerMap[SET_TIME] = &setTimeModeHandler;
+
+  setModeHandlerMap[NONE] = &noneSetModeHandler;
+  setModeHandlerMap[HR_12_24] = &hour12_24SetModeHandler;
+  setModeHandlerMap[HR_TENS] = &hourTensSetModeHandler;
+  setModeHandlerMap[HR_ONES] = &hourOnesSetModeHandler;
+  setModeHandlerMap[MIN_TENS] = &minTensSetModeHandler;
+  setModeHandlerMap[MIN_ONES] = &minOnesSetModeHandler;
+  setModeHandlerMap[AMPM] = &ampmSetModeHandler;
 }
 
+/**
+ * Map button presses in different run modes to their handler functions.
+ */
 void mapButtonHandlers()
 {
   // Time button handlers
   timeButtonHandlerMap[RUN] = &runModeTimeButtonHandler;
-  timeButtonHandlerMap[SET_TIME] = &setTimeModeTimeButtonHandler;
+  timeButtonHandlerMap[SET_TIME] = &setModeTimeButtonHandler;
 
   // Alarm button handlers
   alarmButtonHandlerMap[RUN] = &runModeAlarmButtonHandler;
+  alarmButtonHandlerMap[SET_TIME] = &setModeAlarmButtonHandler;
 }
 
-void changeMode(enum Mode newMode)
+void mapAdvancHandlers()
+{
+}
+
+void changeRunMode(enum RunMode newMode)
 {
   switch (newMode)
   {
     case SET_TIME:
+      changeSetMode(NONE);
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
       break;
   }
 
-  currentMode = newMode;
+  currentRunMode = newMode;
 }
+
+void changeSetMode(enum SetMode newMode)
+{
+  currentSetMode = newMode;
+}
+
+/*******************************************************************************
+ *
+ * Run Mode Handlers 
+ *
+ ******************************************************************************/
 
 /**
  * Handler for run mode (normal clock operating mode). This handler simply
@@ -222,6 +269,61 @@ void runModeHandler()
  */
 void setTimeModeHandler()
 {
+  // Call the set mode sub-mode handlers
+  setModeHandlerMap[currentSetMode]();
+}
+
+/*******************************************************************************
+ *
+ * Button Handlers 
+ *
+ ******************************************************************************/
+
+void runModeTimeButtonHandler(boolean longPress)
+{
+  if (longPress)
+    changeRunMode(SET_TIME);
+}
+
+void runModeAlarmButtonHandler(boolean longPress)
+{
+  if (longPress)
+    changeRunMode(SET_ALARM);
+}
+
+void setModeTimeButtonHandler(boolean longPress)
+{
+  if (longPress)
+  {
+    // TODO: Set time and return to run mode
+    changeRunMode(RUN);
+  }
+  else
+  {
+    advanceCurrentSetMode();
+  }
+}
+
+void setModeAlarmButtonHandler(boolean longPress)
+{
+  if (longPress)
+  {
+    // NO-OP
+  }
+  else
+  {
+    proceedToNextSetMode();
+  }
+}
+
+/*******************************************************************************
+ *
+ * Set Time/Alarm Mode Sub-mode Handlers
+ *
+ ******************************************************************************/
+
+void noneSetModeHandler()
+{
   // blinkShouldBeOn() will be true when time should be displayed
   if (blinkShouldBeOn()) 
   { 
@@ -233,30 +335,57 @@ void setTimeModeHandler()
   }
 }
 
-/**
- * Handler for time button presses when in run mode.
- */
-void runModeTimeButtonHandler(boolean longPress)
+void hour12_24SetModeHandler()
 {
-  if (longPress)
-    changeMode(SET_TIME);
-}
-
-void runModeAlarmButtonHandler(boolean longPress)
-{
-  if (longPress)
-    changeMode(SET_ALARM);
-}
-
-void setTimeModeTimeButtonHandler(boolean longPress)
-{
-  if (longPress)
+  if (blinkShouldBeOn())
   {
-    // TODO: Set time and return to run mode
+    byte val = timeSetTwelveHourMode ? 12 : 24;
+    outputToDisplay(0, 0, numbers[val/10], numbers[val%10]);
+    digitalWrite(OE_PIN, LOW);
+    digitalWrite(SECONDS2_PIN, HIGH);
+    digitalWrite(SECONDS3_PIN, HIGH);
   }
   else
   {
+    blankDisplay();
   }
+}
+
+void hourTensSetModeHandler()
+{
+}
+
+void hourOnesSetModeHandler()
+{
+
+}
+
+void minTensSetModeHandler()
+{
+}
+
+void minOnesSetModeHandler()
+{
+}
+
+void ampmSetModeHandler()
+{
+}
+
+/*******************************************************************************
+ *
+ * Helper Methods
+ *
+ ******************************************************************************/
+
+void proceedToNextSetMode()
+{
+  // Warning: This assumes the enum values are listed in order of procession!
+  currentSetMode = (SetMode) ((currentSetMode + 1) % NUM_SET_MODES);
+}
+
+void toggleAlarm()
+{
 }
 
 /**
@@ -303,18 +432,25 @@ boolean fetchTime(byte* hour, byte* minute, boolean* ampm)
 }
 
 /**
- * Outputs arbitrary values to the numitron display.
+ * Low-level output to numitron display. This will shift the bytes directly to
+ * the drivers, without converting them from BCD to seven segment display.
+ */
+void outputToDisplay(byte hourTens, byte hourOnes, byte minuteTens, byte minuteOnes)
+{
+  digitalWrite(LATCH_PIN, LOW);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, hourTens);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, hourOnes);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, minuteTens);
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, minuteOnes);
+  digitalWrite(LATCH_PIN, HIGH);
+}
+
+/**
+ * Outputs hour and minute values to the numitron display.
  */
 void outputToDisplay(byte hour, byte minute, boolean ampm)
 {
-  digitalWrite(LATCH_PIN, LOW);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour/10]);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[hour%10]);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute/10]);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, numbers[minute%10]);
-  digitalWrite(LATCH_PIN, HIGH);
-  
-  // Also output AMPM indicator light
+  outputToDisplay(numbers[hour/10], numbers[hour%10], numbers[minute/10], numbers[minute%10]);
   digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); 
 }
 
@@ -334,32 +470,25 @@ Serial.println(" time button press");
 #endif
   
   timeSetButtonPressTime = 0;
-  timeButtonHandlerMap[currentMode](longPress);
+  timeButtonHandlerMap[currentRunMode](longPress);
 }
 
 void processAlarmButtonPress()
 {
-#if DEBUG
-Serial.println("Alarm button pressed");
-#endif
   boolean longPress = false;
-  
+
   while (digitalRead(ALRM_BTN_PIN) == LOW) 
   {
     if (millis() - alarmSetButtonPressTime >= LONG_PRESS) 
       longPress = true;
   }
-  
-  switch (currentMode) 
-  {
-    case RUN:
-      if (longPress) 
-        changeMode(SET_ALARM);
 
-      break;
-  }
+#if DEBUG
+Serial.print("Alarm button pressed");
+#endif
   
   alarmSetButtonPressTime = 0;
+  alarmButtonHandlerMap[currentRunMode](longPress);
 }
 
 /**
@@ -372,10 +501,11 @@ void blankDisplay()
   digitalWrite(SECONDS1_PIN, LOW);
   digitalWrite(SECONDS2_PIN, LOW);
   digitalWrite(SECONDS3_PIN, LOW);
-  digitalWrite(AMPM_PIN, LOW);
-  digitalWrite(ALRM_PIN, LOW);
 }
 
+/**
+ * Unblanks the display.
+ */
 void showDisplay()
 {
   digitalWrite(OE_PIN, LOW);

@@ -25,7 +25,10 @@
 
 #include "WProgram.h"
 
-enum Mode 
+#define NUM_RUN_MODES 4
+#define NUM_SET_MODES 6
+
+enum RunMode 
 {
   RUN = 0,
   RUN_BLANK,
@@ -33,16 +36,19 @@ enum Mode
   SET_ALARM
 }; 
 
-enum Digits
+enum SetMode
 {
-  HR_TENS = 0,
+  NONE = 0,
+  HR_12_24,
+  HR_TENS,
   HR_ONES,
   MIN_TENS,
   MIN_ONES,
-  NONE
+  AMPM
 };
 
 typedef void (*ModeHandler)();
+typedef void (*AdvanceHandler)();
 typedef void (*ButtonHandler)(boolean);
 
 #endif
