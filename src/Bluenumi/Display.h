@@ -41,6 +41,7 @@ class SegmentDisplay
 
   private:
     static uint8_t bcdMap[10];
+    void shift(uint8_t);
 };
 
 extern SegmentDisplay Display;

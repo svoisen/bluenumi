@@ -20,7 +20,8 @@
 #include <avr/interrupt.h> // Used for adding interrupts
 #include "Wire.h" // Used for communicating over I2C
 #include "DS1307RTC.h" // Library for RTC tasks
-#include "Bluenumi.h" // Custom types
+#include "Bluenumi.h"
+#include "Display.h"
 
 /*******************************************************************************
  *
@@ -31,19 +32,12 @@
 #define SECONDS1_PIN 10 // LED under 1s hour
 #define SECONDS2_PIN 11 // LED under 10s minute
 #define SECONDS3_PIN 3 // LED under 1s minute
-#define DATA_PIN 13 // Data input to A6278 shift registers
-#define LATCH_PIN 12 // Latch control for A6278 shift registers
-#define CLK_PIN 6 // Clock for A6278 shift registers
-#define OE_PIN 7 // Output enable on A6278 shift registers, active low
 #define AMPM_PIN 0 // Both RX and used for AMPM indicator LED
 #define ALRM_PIN 1 // Both TX and used for alarm indicator LED
 #define PIEZO_PIN 8 // Piezo alarm
 #define HZ_PIN 4 // 1 Hz pulse from DS1307 RTC
 #define TIME_BTN_PIN 5 // Time set/left button
 #define ALRM_BTN_PIN 2 // Alarm set/right button
-
-#define SDA_PIN 4 // Analog pin, used for 2wire communication to DS1307
-#define SCL_PIN 5 // Analog pin, used for 2wire communicatino to DS1307
 
 /*******************************************************************************
  *
@@ -70,10 +64,7 @@
 byte alarmHours, alarmMinutes, timeSetHours, timeSetMinutes = 0;
 boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
-boolean alarmOn = false;
-
-// Array translates BCD to 7-segment output
-const int numbers[] = {123, 96, 87, 118, 108, 62, 47, 112, 127, 124};  
+boolean alarmEnabled = false;
 
 // Set to true when time display needs updating
 volatile boolean displayDirty = true; 
@@ -118,10 +109,6 @@ Serial.println("Firmware Version 001");
   pinMode(SECONDS1_PIN, OUTPUT);
   pinMode(SECONDS2_PIN, OUTPUT);
   pinMode(SECONDS3_PIN, OUTPUT);
-  pinMode(DATA_PIN, OUTPUT);
-  pinMode(LATCH_PIN, OUTPUT);
-  pinMode(CLK_PIN, OUTPUT);
-  pinMode(OE_PIN, OUTPUT);
   pinMode(AMPM_PIN, OUTPUT);
   pinMode(ALRM_PIN, OUTPUT);
   pinMode(PIEZO_PIN, OUTPUT);
@@ -134,9 +121,6 @@ Serial.println("Firmware Version 001");
   digitalWrite(TIME_BTN_PIN, HIGH);
   digitalWrite(ALRM_BTN_PIN, HIGH);
   
-  // Enable output to numitrons
-  digitalWrite(OE_PIN, LOW);
-  
   // The Arduino libraries do not support enough interrupts, so here we use
   // standard AVR libc interrupt vectors for the two buttons, and the RTC
   // square wave
@@ -147,7 +131,10 @@ Serial.println("Firmware Version 001");
 
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();
-  
+
+  // Start numitron display
+  Display.begin();
+
   // Map handlers
   mapModeHandlers();
   mapButtonHandlers();
@@ -228,8 +215,8 @@ void changeRunMode(enum RunMode newMode)
   switch (newMode)
   {
     case SET_TIME:
-      changeSetMode(NONE);
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
+      changeSetMode(NONE);
       break;
   }
 
@@ -256,7 +243,7 @@ void runModeHandler()
   // Only update time display as necessary
   if (displayDirty) 
   {
-    outputCurrentTime();
+    outputTime();
     displayDirty = false;
   }
 }
@@ -321,15 +308,14 @@ void setModeAlarmButtonHandler(boolean longPress)
 
 void noneSetModeHandler()
 {
-  // blinkShouldBeOn() will be true when time should be displayed
   if (blinkShouldBeOn()) 
   { 
-    outputCurrentTimeSetTime();
-    showDisplay();
+    outputSetTime();
+    enableEntireDisplay();
   }
   else 
   {
-    blankDisplay();
+    disableEntireDisplay();
   }
 }
 
@@ -338,14 +324,14 @@ void hour12_24SetModeHandler()
   if (blinkShouldBeOn())
   {
     byte val = timeSetTwelveHourMode ? 12 : 24;
-    outputToDisplay(0, 0, numbers[val/10], numbers[val%10]);
-    digitalWrite(OE_PIN, LOW);
-    digitalWrite(SECONDS2_PIN, HIGH);
-    digitalWrite(SECONDS3_PIN, HIGH);
+
+    Display.outputDigits(0xFF, 0xFF, val/10, val%10);
+    Display.setEnabled(true);
+    setLEDs(false, false, true, true);
   }
   else
   {
-    blankDisplay();
+    disableEntireDisplay();
   }
 }
 
@@ -353,11 +339,14 @@ void hourTensSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
-    outputCurrentTimeSetTime();
+    outputSetTime();
+    enableEntireDisplay();
   }
   else
   {
-    outputToDisplay(0, numbers[timeSetHours%10], numbers[timeSetMinutes/10], numbers[timeSetMinutes%10]);
+    Display.outputDigits(0xFF, timeSetHours%10, timeSetMinutes/10, timeSetMinutes%10);
+    Display.setEnabled(true);
+    setLEDs(false, true, true, true);
   }
 }
 
@@ -365,11 +354,14 @@ void hourOnesSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
-    outputCurrentTimeSetTime();
+    outputSetTime();
+    enableEntireDisplay();
   }
   else
   {
-    outputToDisplay(numbers[timeSetHours/10], 0, numbers[timeSetMinutes/10], numbers[timeSetMinutes%10]);
+    Display.outputDigits(timeSetHours/10, 0xFF, timeSetMinutes/10, timeSetMinutes%10);
+    Display.setEnabled(true);
+    setLEDs(true, false, true, true);
   }
 }
 
@@ -377,10 +369,14 @@ void minTensSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
-    outputCurrentTimeSetTime();
+    outputSetTime();
+    enableEntireDisplay();
   }
   else
   {
+    Display.outputDigits(timeSetHours/10, timeSetHours%10, 0xFF, timeSetMinutes%10);
+    Display.setEnabled(true);
+    setLEDs(true, true, false, true);
   }
 }
 
@@ -388,10 +384,14 @@ void minOnesSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
-    outputCurrentTimeSetTime();
+    outputSetTime();
+    enableEntireDisplay();
   }
   else
   {
+    Display.outputDigits(timeSetHours/10, timeSetHours%10, timeSetMinutes/10, timeSetMinutes%10);
+    Display.setEnabled(true);
+    setLEDs(true, true, true, false);
   }
 }
 
@@ -399,9 +399,12 @@ void ampmSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
+    outputSetTime();
+    enableEntireDisplay();
   }
   else
   {
+
   }
 }
 
@@ -410,19 +413,43 @@ void ampmSetModeHandler()
  * Helper Methods
  *
  ******************************************************************************/
-void outputCurrentTimeSetTime()
+
+/**
+ * Outputs the time to be set. This is the time that is temporarily stored
+ * for manipulation while the clock is in time set mode or alarm set mode.
+ */
+void outputSetTime()
 {
-  outputToDisplay(timeSetHours, timeSetMinutes, timeSetAmPm);
+  Display.outputTime(timeSetHours, timeSetMinutes);
 }
 
+/**
+ * Moves to the next sub mode when setting the time or the alarm.
+ */
 void proceedToNextSetMode()
 {
   // Warning: This assumes the enum values are listed in order of procession!
   currentSetMode = (SetMode) ((currentSetMode + 1) % NUM_SET_MODES);
 }
 
+/**
+ * Toggle the alarm enable state.
+ */
 void toggleAlarm()
 {
+  alarmEnabled = !alarmEnabled;
+}
+
+/**
+ * Helper method for quickly setting the ON/OFF state of the four blue
+ * LEDs.
+ */
+void setLEDs(boolean sec0, boolean sec1, boolean sec2, boolean sec3)
+{
+  digitalWrite(SECONDS0_PIN, sec0);
+  digitalWrite(SECONDS1_PIN, sec1);
+  digitalWrite(SECONDS2_PIN, sec2);
+  digitalWrite(SECONDS3_PIN, sec3);
 }
 
 /**
@@ -446,13 +473,13 @@ boolean blinkShouldBeOn()
 /**
  * Display the current time on the numitrons. 
  */
-void outputCurrentTime()
+void outputTime()
 {
   byte minute, hour;
   boolean ampm;
 
   fetchTime(&hour, &minute, &ampm);
-  outputToDisplay(hour, minute, ampm);
+  Display.outputTime(hour, minute);
 }
 
 /**
@@ -468,38 +495,15 @@ boolean fetchTime(byte* hour, byte* minute, boolean* ampm)
   return true;
 }
 
-/**
- * Low-level output to numitron display. This will shift the bytes directly to
- * the drivers, without converting them from BCD to seven segment display.
- */
-void outputToDisplay(byte hourTens, byte hourOnes, byte minuteTens, byte minuteOnes)
-{
-  digitalWrite(LATCH_PIN, LOW);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, hourTens);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, hourOnes);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, minuteTens);
-  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, minuteOnes);
-  digitalWrite(LATCH_PIN, HIGH);
-}
-
-/**
- * Outputs hour and minute values to the numitron display.
- */
-void outputToDisplay(byte hour, byte minute, boolean ampm)
-{
-  outputToDisplay(numbers[hour/10], numbers[hour%10], numbers[minute/10], numbers[minute%10]);
-  digitalWrite(AMPM_PIN, (ampm ? HIGH : LOW)); 
-}
-
 void processTimeButtonPress()
 {
+  if (digitalRead(TIME_BTN_PIN) == LOW) 
+    return;
+
   boolean longPress = false;
-  
-  while (digitalRead(TIME_BTN_PIN) == LOW) 
-  {
-    if (millis() - timeSetButtonPressTime >= LONG_PRESS) 
-      longPress = true;
-  }
+
+  if (millis() - timeSetButtonPressTime >= LONG_PRESS) 
+    longPress = true;
 
 #if DEBUG
 Serial.print(longPress ? "Long" : "Short");
@@ -512,13 +516,13 @@ Serial.println(" time button press");
 
 void processAlarmButtonPress()
 {
+  if (digitalRead(ALRM_BTN_PIN) == LOW) 
+    return;
+
   boolean longPress = false;
 
-  while (digitalRead(ALRM_BTN_PIN) == LOW) 
-  {
-    if (millis() - alarmSetButtonPressTime >= LONG_PRESS) 
-      longPress = true;
-  }
+  if (millis() - alarmSetButtonPressTime >= LONG_PRESS) 
+    longPress = true;
 
 #if DEBUG
 Serial.print("Alarm button pressed");
@@ -531,25 +535,19 @@ Serial.print("Alarm button pressed");
 /**
  * Blanks the entire display, both numitrons and all LEDs.
  */
-void blankDisplay()
+void disableEntireDisplay()
 {
-  digitalWrite(OE_PIN, HIGH);
-  digitalWrite(SECONDS0_PIN, LOW);
-  digitalWrite(SECONDS1_PIN, LOW);
-  digitalWrite(SECONDS2_PIN, LOW);
-  digitalWrite(SECONDS3_PIN, LOW);
+  Display.setEnabled(false);
+  setLEDs(false, false, false, false);
 }
 
 /**
  * Unblanks the entire display, both numitrons and all LEDs.
  */
-void showDisplay()
+void enableEntireDisplay()
 {
-  digitalWrite(OE_PIN, LOW);
-  digitalWrite(SECONDS0_PIN, HIGH);
-  digitalWrite(SECONDS1_PIN, HIGH);
-  digitalWrite(SECONDS2_PIN, HIGH);
-  digitalWrite(SECONDS3_PIN, HIGH);
+  Display.setEnabled(true);
+  setLEDs(true, true, true, true);
 }
 
 /**

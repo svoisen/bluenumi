@@ -1,6 +1,8 @@
 /*******************************************************************************
  * Copyright (C) 2008 Maurice Ribble <http://www.glacialwanderer.com>
  *
+ * Modified by Sean Voisen <http://sean.voisen.org>
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -44,12 +46,14 @@ void DS1307::setDateTime(
   bool startClock,
   uint8_t controlRegister )
 {
-  Wire.beginTransmission( DS1307_I2C_ADDRESS );
+  Wire.beginTransmission(DS1307_I2C_ADDRESS);
   Wire.send(0);
-  Wire.send( decToBcd( second ) | ( startClock ? 0x00 : 0x80 ) ); // 0 to bit 7 starts the clock, 1 stops
-  Wire.send( decToBcd( minute ) );
-  if( twelveHourMode ) {
-    Wire.send( decToBcd( hour ) | ( ampm ? 0x60 : 0x40 ) );
+  Wire.send(decToBcd(second) | (startClock ? 0x00 : 0x80 )); // 0 to bit 7 starts the clock, 1 stops
+  Wire.send(decToBcd(minute));
+
+  if (twelveHourMode) 
+  {
+    Wire.send(decToBcd(hour) | ( ampm ? 0x60 : 0x40 ) );
   }
   else {
     Wire.send( decToBcd( hour ) );

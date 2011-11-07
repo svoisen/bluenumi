@@ -39,7 +39,7 @@ void SegmentDisplay::begin()
 
 void SegmentDisplay::outputTime(uint8_t hours, uint8_t minutes)
 {
-  digitalWrite(LATCH_PIN, LOW);
+  outputDigits(hours/10, hours%10, minutes/10, minutes%10);
 }
 
 void SegmentDisplay::outputDigits(
@@ -48,7 +48,12 @@ void SegmentDisplay::outputDigits(
     uint8_t third,
     uint8_t fourth)
 {
-
+  outputBytes(
+      first == 0xFF ? 0 : bcdMap[first], 
+      second == 0xFF ? 0 :bcdMap[second], 
+      third == 0xFF ? 0 : bcdMap[third], 
+      fourth == 0xFF ? 0 : bcdMap[fourth]
+  );
 }
 
 void SegmentDisplay::outputBytes(
@@ -57,8 +62,22 @@ void SegmentDisplay::outputBytes(
     uint8_t third,
     uint8_t fourth)
 {
+  digitalWrite(LATCH_PIN, LOW);
+  shift(first);
+  shift(second);
+  shift(third);
+  shift(fourth);
+  digitalWrite(LATCH_PIN, HIGH);
 }
 
 void SegmentDisplay::setEnabled(bool enabled)
 {
+  digitalWrite(OE_PIN, enabled ? LOW : HIGH);
 }
+
+void SegmentDisplay::shift(uint8_t val)
+{
+  shiftOut(DATA_PIN, CLK_PIN, MSBFIRST, val);
+}
+
+SegmentDisplay Display = SegmentDisplay();
