@@ -16,36 +16,33 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  ******************************************************************************/
- 
-#ifndef BLUENUMI_h
-#define BLUENUMI_h
+
+#ifndef DISPLAY_H_
+#define DISPLAY_H_
 
 #include "WProgram.h"
+#include "WConstants.h"
+#include <inttypes.h>
 
-#define NUM_RUN_MODES 4
-#define NUM_SET_MODES 6
+#define DATA_PIN 13
+#define LATCH_PIN 12
+#define CLK_PIN 6
+#define OE_PIN 7
 
-enum RunMode 
+class SegmentDisplay
 {
-  RUN = 0,
-  RUN_BLANK,
-  SET_TIME,
-  SET_ALARM
-}; 
+  public:
+    SegmentDisplay();
+    void begin();
+    void outputTime(uint8_t, uint8_t);
+    void outputDigits(uint8_t, uint8_t, uint8_t, uint8_t);
+    void outputBytes(uint8_t, uint8_t, uint8_t, uint8_t);
+    void setEnabled(bool);
 
-enum SetMode
-{
-  NONE = 0,
-  HR_12_24,
-  HR_TENS,
-  HR_ONES,
-  MIN_TENS,
-  MIN_ONES,
-  AMPM
+  private:
+    static uint8_t bcdMap[10];
 };
 
-typedef void (*ModeHandler)();
-typedef void (*AdvanceHandler)();
-typedef void (*ButtonHandler)(boolean);
+extern SegmentDisplay Display;
 
-#endif
+#endif // DISPLAY_H_

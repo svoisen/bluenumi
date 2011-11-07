@@ -1,5 +1,23 @@
-#ifndef DS1307RTC_h
-#define DS1307RTC_h
+/*******************************************************************************
+ * Copyright (C) 2008 Maurice Ribble <http://www.glacialwanderer.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ ******************************************************************************/
+
+#ifndef DS1307RTC_H_
+#define DS1307RTC_H_
 
 #include "Wire.h"
 #include <inttypes.h>
@@ -25,15 +43,15 @@ class DS1307
     
     DS1307();
     void begin();
-    void setDateTime( uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool, bool, bool, uint8_t );
-    void getDateTime( uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, bool*, bool* );
+    void setDateTime(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool, bool, bool, uint8_t);
+    void getDateTime(uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, bool*, bool*);
     bool isRunning();
     
   private:
-    uint8_t decToBcd( uint8_t );
-    uint8_t bcdToDec( uint8_t );
+    uint8_t decToBcd(uint8_t);
+    uint8_t bcdToDec(uint8_t);
 };
 
 extern DS1307 DS1307RTC;
 
-#endif
+#endif // DS1307RTC_H_

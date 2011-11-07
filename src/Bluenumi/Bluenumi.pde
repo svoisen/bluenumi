@@ -1,7 +1,4 @@
 /*******************************************************************************
- * Bluenumi Clock Firmware
- * Version 001
- *
  * Copyright (C) 2009-2011 Sean Voisen <http://sean.voisen.org> 
  * All rights reserved.
  *
@@ -222,7 +219,7 @@ void mapButtonHandlers()
   alarmButtonHandlerMap[SET_TIME] = &setModeAlarmButtonHandler;
 }
 
-void mapAdvancHandlers()
+void mapAdvanceHandlers()
 {
 }
 
@@ -300,7 +297,7 @@ void setModeTimeButtonHandler(boolean longPress)
   }
   else
   {
-    advanceCurrentSetMode();
+    //advanceCurrentSetMode();
   }
 }
 
@@ -327,6 +324,7 @@ void noneSetModeHandler()
   // blinkShouldBeOn() will be true when time should be displayed
   if (blinkShouldBeOn()) 
   { 
+    outputCurrentTimeSetTime();
     showDisplay();
   }
   else 
@@ -353,23 +351,58 @@ void hour12_24SetModeHandler()
 
 void hourTensSetModeHandler()
 {
+  if (blinkShouldBeOn())
+  {
+    outputCurrentTimeSetTime();
+  }
+  else
+  {
+    outputToDisplay(0, numbers[timeSetHours%10], numbers[timeSetMinutes/10], numbers[timeSetMinutes%10]);
+  }
 }
 
 void hourOnesSetModeHandler()
 {
-
+  if (blinkShouldBeOn())
+  {
+    outputCurrentTimeSetTime();
+  }
+  else
+  {
+    outputToDisplay(numbers[timeSetHours/10], 0, numbers[timeSetMinutes/10], numbers[timeSetMinutes%10]);
+  }
 }
 
 void minTensSetModeHandler()
 {
+  if (blinkShouldBeOn())
+  {
+    outputCurrentTimeSetTime();
+  }
+  else
+  {
+  }
 }
 
 void minOnesSetModeHandler()
 {
+  if (blinkShouldBeOn())
+  {
+    outputCurrentTimeSetTime();
+  }
+  else
+  {
+  }
 }
 
 void ampmSetModeHandler()
 {
+  if (blinkShouldBeOn())
+  {
+  }
+  else
+  {
+  }
 }
 
 /*******************************************************************************
@@ -377,6 +410,10 @@ void ampmSetModeHandler()
  * Helper Methods
  *
  ******************************************************************************/
+void outputCurrentTimeSetTime()
+{
+  outputToDisplay(timeSetHours, timeSetMinutes, timeSetAmPm);
+}
 
 void proceedToNextSetMode()
 {
@@ -504,7 +541,7 @@ void blankDisplay()
 }
 
 /**
- * Unblanks the display.
+ * Unblanks the entire display, both numitrons and all LEDs.
  */
 void showDisplay()
 {

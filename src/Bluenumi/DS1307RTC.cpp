@@ -1,3 +1,21 @@
+/*******************************************************************************
+ * Copyright (C) 2008 Maurice Ribble <http://www.glacialwanderer.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ ******************************************************************************/
+
 extern "C" {
   #include <inttypes.h>
 }
@@ -8,9 +26,6 @@ DS1307::DS1307()
 {
 }
 
-/**
- * This simply begins the I2C communication
- */
 void DS1307::begin()
 {
   Wire.begin();
@@ -50,15 +65,14 @@ void DS1307::setDateTime(
 bool DS1307::isRunning()
 {
   // Reset the register pointer
-  Wire.beginTransmission( DS1307_I2C_ADDRESS );
-  Wire.send( 0 );
+  Wire.beginTransmission(DS1307_I2C_ADDRESS);
+  Wire.send(0);
   Wire.endTransmission();
   
-  Wire.requestFrom( DS1307_I2C_ADDRESS, 1 );
+  Wire.requestFrom(DS1307_I2C_ADDRESS, 1);
   
-  if( Wire.receive() & 0x80 ) {
+  if (Wire.receive() & 0x80) 
     return false;
-  }
   
   return true;
 }
@@ -75,10 +89,10 @@ void DS1307::getDateTime(
   bool *ampm )
 {
   // Reset the register pointer
-  Wire.beginTransmission( DS1307_I2C_ADDRESS );
-  Wire.send( 0 );
+  Wire.beginTransmission(DS1307_I2C_ADDRESS);
+  Wire.send(0);
   Wire.endTransmission();
-  Wire.requestFrom( DS1307_I2C_ADDRESS, 7 );
+  Wire.requestFrom(DS1307_I2C_ADDRESS, 7);
 
   *second     = bcdToDec(Wire.receive() & 0x7f); // Mask out the CH bit
   *minute     = bcdToDec(Wire.receive());
@@ -101,12 +115,12 @@ void DS1307::getDateTime(
 
 uint8_t DS1307::decToBcd( uint8_t val )
 {
-  return ( (val/10*16) + (val%10) );
+  return ((val/10*16) + (val%10));
 }
 
 uint8_t DS1307::bcdToDec( uint8_t val )
 {
-  return ( (val/16*10) + (val%16) );
+  return ((val/16*10) + (val%16));
 }
 
 DS1307 DS1307RTC = DS1307();

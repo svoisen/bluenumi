@@ -16,36 +16,49 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  ******************************************************************************/
- 
-#ifndef BLUENUMI_h
-#define BLUENUMI_h
 
-#include "WProgram.h"
+#include "Display.h"
 
-#define NUM_RUN_MODES 4
-#define NUM_SET_MODES 6
+uint8_t SegmentDisplay::bcdMap[10] = {
+  123, 96, 87, 118, 108, 62, 47, 112, 127, 124
+};  
 
-enum RunMode 
+SegmentDisplay::SegmentDisplay()
 {
-  RUN = 0,
-  RUN_BLANK,
-  SET_TIME,
-  SET_ALARM
-}; 
+}
 
-enum SetMode
+void SegmentDisplay::begin()
 {
-  NONE = 0,
-  HR_12_24,
-  HR_TENS,
-  HR_ONES,
-  MIN_TENS,
-  MIN_ONES,
-  AMPM
-};
+  pinMode(DATA_PIN, OUTPUT);
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(CLK_PIN, OUTPUT);
+  pinMode(OE_PIN, OUTPUT);
 
-typedef void (*ModeHandler)();
-typedef void (*AdvanceHandler)();
-typedef void (*ButtonHandler)(boolean);
+  setEnabled(true);
+}
 
-#endif
+void SegmentDisplay::outputTime(uint8_t hours, uint8_t minutes)
+{
+  digitalWrite(LATCH_PIN, LOW);
+}
+
+void SegmentDisplay::outputDigits(
+    uint8_t first, 
+    uint8_t second, 
+    uint8_t third,
+    uint8_t fourth)
+{
+
+}
+
+void SegmentDisplay::outputBytes(
+    uint8_t first,
+    uint8_t second,
+    uint8_t third,
+    uint8_t fourth)
+{
+}
+
+void SegmentDisplay::setEnabled(bool enabled)
+{
+}
