@@ -44,7 +44,7 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 20 // Interval to wait when debouncing buttons
+#define DEBOUNCE_INTERVAL 250 // Interval to wait when debouncing buttons
 #define LONG_PRESS 3000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
@@ -206,8 +206,23 @@ void mapButtonHandlers()
   alarmButtonHandlerMap[SET_TIME] = &setModeAlarmButtonHandler;
 }
 
+/**
+ * Map handlers that cycle (advance) through the various set sub-modes.
+ * For instance, the advance handler for the minute tens digit cycles
+ * the output of that digit from 0 to 5.
+ */
 void mapAdvanceHandlers()
 {
+  // Convenience pointer
+  AdvanceHandler *map = &setModeAdvanceHandlerMap[0];
+
+  map[NONE] = &noneSetModeCycleHandler;
+  map[HR_12_24] = &twelveHourSetModeCycleHandler;
+  map[HR_TENS] = &hourTensSetModeCycleHandler;
+  map[HR_ONES] = &hourOnesSetModeCycleHandler;
+  map[MIN_TENS] = &minTensSetModeCycleHandler;
+  map[MIN_ONES] = &minOnesSetModeCycleHandler;
+  map[AMPM] = &ampmSetModeCycleHandler;
 }
 
 void changeRunMode(enum RunMode newMode)
@@ -284,7 +299,7 @@ void setModeTimeButtonHandler(boolean longPress)
   }
   else
   {
-    //advanceCurrentSetMode();
+    cycleCurrentSetMode();
   }
 }
 
@@ -302,7 +317,7 @@ void setModeAlarmButtonHandler(boolean longPress)
 
 /*******************************************************************************
  *
- * Set Time/Alarm Mode Sub-mode Handlers
+ * Set Time/Alarm Sub-mode Handlers
  *
  ******************************************************************************/
 
@@ -410,6 +425,41 @@ void ampmSetModeHandler()
 
 /*******************************************************************************
  *
+ * Set Time/Alarm Sub-mode Cycle Handlers
+ *
+ ******************************************************************************/
+
+void noneSetModeCycleHandler()
+{
+  // NO-OP
+}
+
+void twelveHourSetModeCycleHandler()
+{
+}
+
+void hourTensSetModeCycleHandler()
+{
+}
+
+void hourOnesSetModeCycleHandler()
+{
+}
+
+void minTensSetModeCycleHandler()
+{
+}
+
+void minOnesSetModeCycleHandler()
+{
+}
+
+void ampmSetModeCycleHandler()
+{
+}
+
+/*******************************************************************************
+ *
  * Helper Methods
  *
  ******************************************************************************/
@@ -423,7 +473,7 @@ void outputSetTime()
   Display.outputTime(timeSetHours, timeSetMinutes);
 }
 
-void advanceThroughCurrentSetMode()
+void cycleCurrentSetMode()
 {
 }
 
