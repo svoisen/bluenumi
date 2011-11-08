@@ -45,7 +45,7 @@ enum SetMode
 };
 
 typedef void (*ModeHandler)();
-typedef void (*AdvanceHandler)();
+typedef void (*CycleHandler)();
 typedef void (*ButtonHandler)(boolean);
 
 #endif

@@ -44,7 +44,7 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 250 // Interval to wait when debouncing buttons
+#define DEBOUNCE_INTERVAL 300 // Interval to wait when debouncing buttons
 #define LONG_PRESS 3000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
@@ -61,7 +61,8 @@
  * Variables
  *
  ******************************************************************************/
-byte alarmHours, alarmMinutes, timeSetHours, timeSetMinutes = 0;
+byte alarmHours, timeSetHours = 12;
+byte alarmMinutes, timeSetMinutes = 0;
 boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
 boolean alarmEnabled = false;
@@ -88,7 +89,7 @@ ModeHandler runModeHandlerMap[NUM_RUN_MODES] = {NULL};
 ModeHandler setModeHandlerMap[NUM_SET_MODES] = {NULL};
 ButtonHandler timeButtonHandlerMap[NUM_RUN_MODES] = {NULL};
 ButtonHandler alarmButtonHandlerMap[NUM_RUN_MODES] = {NULL};
-AdvanceHandler setModeAdvanceHandlerMap[NUM_SET_MODES] = {NULL};
+CycleHandler setModeCycleHandlerMap[NUM_SET_MODES] = {NULL};
 
 /*******************************************************************************
  *
@@ -138,7 +139,7 @@ Serial.println("Firmware Version 001");
   // Map handlers
   mapModeHandlers();
   mapButtonHandlers();
-  mapAdvanceHandlers();
+  mapCycleHandlers();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
   //if (!DS1307RTC.isRunning()) 
@@ -146,8 +147,8 @@ Serial.println("Firmware Version 001");
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
 #endif
-    // Start at midnight
-    DS1307RTC.setDateTime(0, 0, 12, 1, 1, 1, 10, true, true, true, 0x10);
+    // Start at default time
+    DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
 
     // Clock is not running, probably powering up for the first time, change 
     // mode to set time
@@ -211,10 +212,10 @@ void mapButtonHandlers()
  * For instance, the advance handler for the minute tens digit cycles
  * the output of that digit from 0 to 5.
  */
-void mapAdvanceHandlers()
+void mapCycleHandlers()
 {
   // Convenience pointer
-  AdvanceHandler *map = &setModeAdvanceHandlerMap[0];
+  CycleHandler *map = &setModeCycleHandlerMap[0];
 
   map[NONE] = &noneSetModeCycleHandler;
   map[HR_12_24] = &twelveHourSetModeCycleHandler;
@@ -232,6 +233,10 @@ void changeRunMode(enum RunMode newMode)
     case SET_TIME:
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
       changeSetMode(NONE);
+      break;
+
+    default:
+      // NO-OP
       break;
   }
 
@@ -294,7 +299,8 @@ void setModeTimeButtonHandler(boolean longPress)
 {
   if (longPress)
   {
-    // TODO: Set time and return to run mode
+    DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
+    enableEntireDisplay();
     changeRunMode(RUN);
   }
   else
@@ -436,26 +442,64 @@ void noneSetModeCycleHandler()
 
 void twelveHourSetModeCycleHandler()
 {
+  timeSetTwelveHourMode = !timeSetTwelveHourMode;
 }
 
 void hourTensSetModeCycleHandler()
 {
+  byte tens = timeSetHours / 10;
+  byte ones = timeSetHours % 10;
+  byte divisor = (timeSetTwelveHourMode ? 2 : 3);
+
+  timeSetHours = ((tens + 1) % divisor)*10 + ones;
+
+  if (!timeSetTwelveHourMode)
+    return;
+
+  timeSetAmPm = timeSetHours > 12;
 }
 
 void hourOnesSetModeCycleHandler()
 {
+  byte tens = timeSetHours / 10;
+  byte ones = timeSetHours % 10;
+  byte divisor;
+
+  if (tens == 0)
+  {
+    divisor = 10;
+  }
+  else if (tens == 1)
+  {
+    divisor = (timeSetTwelveHourMode ? 3 : 10);
+  }
+  else
+  {
+    divisor = 5;
+  }
+
+  timeSetHours = tens*10 + ((ones + 1) % divisor);
 }
 
 void minTensSetModeCycleHandler()
 {
+  byte tens = timeSetMinutes / 10;
+  byte ones = timeSetMinutes % 10;
+
+  timeSetMinutes = ((tens + 1) % 6)*10 + ones;
 }
 
 void minOnesSetModeCycleHandler()
 {
+  byte tens = timeSetMinutes / 10;
+  byte ones = timeSetMinutes % 10;
+
+  timeSetMinutes = tens*10 + ((ones + 1) % 10);
 }
 
 void ampmSetModeCycleHandler()
 {
+  timeSetAmPm = !timeSetAmPm;
 }
 
 /*******************************************************************************
@@ -475,6 +519,7 @@ void outputSetTime()
 
 void cycleCurrentSetMode()
 {
+  setModeCycleHandlerMap[currentSetMode]();
 }
 
 /**
@@ -579,7 +624,8 @@ void processAlarmButtonPress()
     longPress = true;
 
 #if DEBUG
-Serial.print("Alarm button pressed");
+Serial.print(longPress ? "Long" : "Short");
+Serial.println(" alarm button press");
 #endif
   
   alarmSetButtonPressTime = 0;
@@ -622,11 +668,11 @@ ISR (PCINT2_vect)
     displayDirty = true;
   
   // Check for time button press (pulled low) on pin 5
-  if ((PIND & 0x20) == 0)
+  if ((PIND & 0x20) == 0 && timeSetButtonPressTime == 0)
     debounceTimeButton();
 
   // Check for alarm button press (pulled low) on pin 2
-  if ((PIND & 0x04) == 0)
+  if ((PIND & 0x04) == 0 && alarmSetButtonPressTime == 0)
     debounceAlarmButton();
 }
 
