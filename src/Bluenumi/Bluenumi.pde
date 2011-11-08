@@ -389,7 +389,7 @@ void minOnesSetModeHandler()
   }
   else
   {
-    Display.outputDigits(timeSetHours/10, timeSetHours%10, timeSetMinutes/10, timeSetMinutes%10);
+    Display.outputDigits(timeSetHours/10, timeSetHours%10, timeSetMinutes/10, 0xFF);
     Display.setEnabled(true);
     setLEDs(true, true, true, false);
   }
@@ -421,6 +421,10 @@ void ampmSetModeHandler()
 void outputSetTime()
 {
   Display.outputTime(timeSetHours, timeSetMinutes);
+}
+
+void advanceThroughCurrentSetMode()
+{
 }
 
 /**
