@@ -50,7 +50,7 @@ void SegmentDisplay::outputDigits(
 {
   outputBytes(
       first == 0xFF ? 0 : bcdMap[first], 
-      second == 0xFF ? 0 :bcdMap[second], 
+      second == 0xFF ? 0 : bcdMap[second], 
       third == 0xFF ? 0 : bcdMap[third], 
       fourth == 0xFF ? 0 : bcdMap[fourth]
   );
@@ -73,6 +73,11 @@ void SegmentDisplay::outputBytes(
 void SegmentDisplay::setEnabled(bool enabled)
 {
   digitalWrite(OE_PIN, enabled ? LOW : HIGH);
+}
+
+uint8_t SegmentDisplay::mapBcd(uint8_t input)
+{
+  return bcdMap[input];
 }
 
 void SegmentDisplay::shift(uint8_t val)

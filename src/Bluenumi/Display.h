@@ -32,12 +32,21 @@
 class SegmentDisplay
 {
   public:
+    enum CharCode
+    {
+      A = 0b01111101,
+      P = 0b01011101,
+      H = 0b01101101,
+      R = 0b00000101
+    };
+    
     SegmentDisplay();
     void begin();
     void outputTime(uint8_t, uint8_t);
     void outputDigits(uint8_t, uint8_t, uint8_t, uint8_t);
     void outputBytes(uint8_t, uint8_t, uint8_t, uint8_t);
     void setEnabled(bool);
+    uint8_t mapBcd(uint8_t);
 
   private:
     static uint8_t bcdMap[10];

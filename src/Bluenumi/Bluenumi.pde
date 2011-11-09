@@ -22,6 +22,7 @@
 #include "DS1307RTC.h" // Library for RTC tasks
 #include "Bluenumi.h"
 #include "Display.h"
+#include "Bounce.h"
 
 /*******************************************************************************
  *
@@ -44,8 +45,8 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 300 // Interval to wait when debouncing buttons
-#define LONG_PRESS 3000 // Length of time that qualifies as a long button press
+#define DEBOUNCE_INTERVAL 50 // Interval to wait when debouncing buttons
+#define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
 /*******************************************************************************
@@ -66,6 +67,9 @@ byte alarmMinutes, timeSetMinutes = 0;
 boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
 boolean alarmEnabled = false;
+
+Bounce timeSetButtonDebouncer = Bounce(TIME_BTN_PIN, DEBOUNCE_INTERVAL);
+Bounce alarmSetButtonDebouncer = Bounce(ALRM_BTN_PIN, DEBOUNCE_INTERVAL);
 
 // Set to true when time display needs updating
 volatile boolean displayDirty = true; 
@@ -346,9 +350,8 @@ void hour12_24SetModeHandler()
   {
     byte val = timeSetTwelveHourMode ? 12 : 24;
 
-    Display.outputDigits(0xFF, 0xFF, val/10, val%10);
-    Display.setEnabled(true);
-    setLEDs(false, false, true, true);
+    Display.outputBytes(Display.mapBcd(val/10), Display.mapBcd(val%10), SegmentDisplay::H, SegmentDisplay::R);
+    enableEntireDisplay();
   }
   else
   {
@@ -596,40 +599,34 @@ boolean fetchTime(byte* hour, byte* minute, boolean* ampm)
 
 void processTimeButtonPress()
 {
-  if (digitalRead(TIME_BTN_PIN) == LOW) 
-    return;
+  boolean longPress = (!timeSetButtonDebouncer.read() && (millis() - timeSetButtonPressTime >= LONG_PRESS));
 
-  boolean longPress = false;
-
-  if (millis() - timeSetButtonPressTime >= LONG_PRESS) 
-    longPress = true;
-
+  if (timeSetButtonDebouncer.read() || longPress) 
+  {
 #if DEBUG
 Serial.print(longPress ? "Long" : "Short");
 Serial.println(" time button press");
 #endif
   
-  timeSetButtonPressTime = 0;
-  timeButtonHandlerMap[currentRunMode](longPress);
+    timeSetButtonPressTime = 0;
+    timeButtonHandlerMap[currentRunMode](longPress);
+  }
 }
 
 void processAlarmButtonPress()
 {
-  if (digitalRead(ALRM_BTN_PIN) == LOW) 
-    return;
+  boolean longPress = (!alarmSetButtonDebouncer.read() && (millis() - alarmSetButtonPressTime >= LONG_PRESS));
 
-  boolean longPress = false;
-
-  if (millis() - alarmSetButtonPressTime >= LONG_PRESS) 
-    longPress = true;
-
+  if (alarmSetButtonDebouncer.read() || longPress)
+  {
 #if DEBUG
 Serial.print(longPress ? "Long" : "Short");
 Serial.println(" alarm button press");
 #endif
   
-  alarmSetButtonPressTime = 0;
-  alarmButtonHandlerMap[currentRunMode](longPress);
+    alarmSetButtonPressTime = 0;
+    alarmButtonHandlerMap[currentRunMode](longPress);
+  }
 }
 
 /**
@@ -668,44 +665,10 @@ ISR (PCINT2_vect)
     displayDirty = true;
   
   // Check for time button press (pulled low) on pin 5
-  if ((PIND & 0x20) == 0 && timeSetButtonPressTime == 0)
-    debounceTimeButton();
+  if (timeSetButtonDebouncer.update() && !timeSetButtonDebouncer.read())
+    timeSetButtonPressTime = millis();
 
   // Check for alarm button press (pulled low) on pin 2
-  if ((PIND & 0x04) == 0 && alarmSetButtonPressTime == 0)
-    debounceAlarmButton();
+  if (alarmSetButtonDebouncer.update() && !alarmSetButtonDebouncer.read())
+    alarmSetButtonPressTime = millis();
 }
-
-/**
- * This is called during an interrupt when the time button is pressed (goes
- * low. As such, it is intentionally kept short to minimize processing overhead
- * in the interrupt.
- */
-void debounceTimeButton()
-{
-  static unsigned long lastInterruptTime = 0;
-  unsigned long interruptTime = millis();
-  
-  // Once button has been debounced, record the time of the press so that a
-  // long button press can be checked later
-  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
-    timeSetButtonPressTime = interruptTime;
-  
-  lastInterruptTime = interruptTime;
-}
-
-/**
- * This is called during an interrupt when the alarm button is pressed (goes
- * low.)
- */
-void debounceAlarmButton()
-{
-  static unsigned long lastInterruptTime = 0;
-  unsigned long interruptTime = millis();
-  
-  if (interruptTime - lastInterruptTime > DEBOUNCE_INTERVAL) 
-    alarmSetButtonPressTime = interruptTime;
-  
-  lastInterruptTime = interruptTime;
-}
-
