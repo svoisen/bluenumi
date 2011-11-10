@@ -20,20 +20,26 @@
 #ifndef PATTERN_H_
 #define PATTERN_H_
 
+#include "WProgram.h"
+#include "WConstants.h"
+#include <inttypes.h>
+#include <math.h>
+
 #define SECONDS0_PIN 9 // LED under 10s hour
 #define SECONDS1_PIN 10 // LED under 1s hour
 #define SECONDS2_PIN 11 // LED under 10s minute
 #define SECONDS3_PIN 3 // LED under 1s minute
 
+#define CALL_MEMBER_FN(object, ptrToMember) ((object)->*(ptrToMember))
+
 class PatternGenerator
 {
   public:
+    typedef void (PatternGenerator::*PatternHandler)();
     enum PatternType
     {
       BREATHE
     };
-
-    typedef void (*PatternHandler)();
 
     PatternGenerator();
     void begin();
@@ -42,10 +48,11 @@ class PatternGenerator
     void setEnabled(bool);
 
   private:
+    void mapHandlers();
     enum PatternType currentType;
     bool enabled;
-    PatternHandler patternMap[1];
-    void updateBreatePattern();
+    PatternHandler patternHandlerMap[1];
+    void breatheHandler();
 };
 
 extern PatternGenerator Pattern;

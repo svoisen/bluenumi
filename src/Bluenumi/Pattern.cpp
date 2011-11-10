@@ -19,17 +19,15 @@
 
 #include "Pattern.h"
 
-PatternHandler PatternGenerator::patternMap[1] = {
-
-}
-
 PatternGenerator::PatternGenerator()
 {
+  mapHandlers();
 }
 
 void PatternGenerator::begin()
 {
   enabled = true;
+  currentType = BREATHE;
   
   pinMode(SECONDS0_PIN, OUTPUT);
   pinMode(SECONDS1_PIN, OUTPUT);
@@ -41,6 +39,8 @@ void PatternGenerator::update()
 {
   if (!enabled)
     return;
+
+  CALL_MEMBER_FN(this, patternHandlerMap[currentType])();
 }
 
 void PatternGenerator::setEnabled(bool value)
@@ -58,3 +58,19 @@ void PatternGenerator::setEnabled(bool value)
     digitalWrite(SECONDS3_PIN, LOW);
   }
 }
+
+void PatternGenerator::mapHandlers()
+{
+  patternHandlerMap[BREATHE] = &PatternGenerator::breatheHandler;
+}
+
+void PatternGenerator::breatheHandler()
+{
+  float val = (exp(sin(millis()/2000.0*PI)) - 0.36787944)*108.0;
+  analogWrite(SECONDS0_PIN, val);
+  analogWrite(SECONDS1_PIN, val);
+  analogWrite(SECONDS2_PIN, val);
+  analogWrite(SECONDS3_PIN, val);
+}
+
+PatternGenerator Pattern = PatternGenerator();

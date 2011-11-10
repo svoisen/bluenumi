@@ -22,6 +22,7 @@
 #include "DS1307RTC.h" // Library for RTC tasks
 #include "Bluenumi.h"
 #include "Display.h"
+#include "Pattern.h"
 #include "Bounce.h"
 
 /*******************************************************************************
@@ -29,10 +30,6 @@
  * Pin Mappings
  *
  ******************************************************************************/
-#define SECONDS0_PIN 9 // LED under 10s hour
-#define SECONDS1_PIN 10 // LED under 1s hour
-#define SECONDS2_PIN 11 // LED under 10s minute
-#define SECONDS3_PIN 3 // LED under 1s minute
 #define AMPM_PIN 1 // Both RX and used for AMPM indicator LED
 #define ALRM_PIN 0 // Both TX and used for alarm indicator LED
 #define PIEZO_PIN 8 // Piezo alarm
@@ -109,10 +106,6 @@ Serial.println("Firmware Version 001");
 #endif
  
   // Set up pin modes
-  pinMode(SECONDS0_PIN, OUTPUT);
-  pinMode(SECONDS1_PIN, OUTPUT);
-  pinMode(SECONDS2_PIN, OUTPUT);
-  pinMode(SECONDS3_PIN, OUTPUT);
   pinMode(AMPM_PIN, OUTPUT);
   pinMode(ALRM_PIN, OUTPUT);
   pinMode(PIEZO_PIN, OUTPUT);
@@ -138,6 +131,9 @@ Serial.println("Firmware Version 001");
 
   // Start numitron display
   Display.begin();
+
+  // Start LED patterns
+  Pattern.begin();
 
   // Map handlers
   mapModeHandlers();
@@ -266,6 +262,8 @@ void changeSetMode(enum SetMode newMode)
  */
 void runModeHandler()
 {
+  Pattern.update();
+
   // Only update time display as necessary
   if (displayDirty) 
   {
@@ -662,7 +660,7 @@ Serial.println(" alarm button press");
 void disableEntireDisplay()
 {
   Display.setEnabled(false);
-  setLEDs(false, false, false, false);
+  Pattern.setEnabled(false);
   digitalWrite(AMPM_PIN, LOW);
   digitalWrite(ALRM_PIN, LOW);
 }
@@ -673,7 +671,7 @@ void disableEntireDisplay()
 void enableEntireDisplay()
 {
   Display.setEnabled(true);
-  setLEDs(true, true, true, true);
+  Pattern.setEnabled(true);
   digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
   digitalWrite(ALRM_PIN, alarmEnabled ? HIGH : LOW);
 }
