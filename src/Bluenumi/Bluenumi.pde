@@ -33,8 +33,8 @@
 #define SECONDS1_PIN 10 // LED under 1s hour
 #define SECONDS2_PIN 11 // LED under 10s minute
 #define SECONDS3_PIN 3 // LED under 1s minute
-#define AMPM_PIN 0 // Both RX and used for AMPM indicator LED
-#define ALRM_PIN 1 // Both TX and used for alarm indicator LED
+#define AMPM_PIN 1 // Both RX and used for AMPM indicator LED
+#define ALRM_PIN 0 // Both TX and used for alarm indicator LED
 #define PIEZO_PIN 8 // Piezo alarm
 #define HZ_PIN 4 // 1 Hz pulse from DS1307 RTC
 #define TIME_BTN_PIN 5 // Time set/left button
@@ -54,7 +54,6 @@
  * Debug Defines
  *
  ******************************************************************************/
-#define DEBUG true
 #define DEBUG_BAUD 9600
 
 /*******************************************************************************
@@ -144,9 +143,12 @@ Serial.println("Firmware Version 001");
   mapModeHandlers();
   mapButtonHandlers();
   mapCycleHandlers();
+
+  // Set alarm indicator
+  digitalWrite(ALRM_PIN, alarmEnabled);
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
-  //if (!DS1307RTC.isRunning()) 
+  if (!DS1307RTC.isRunning()) 
   {
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
@@ -296,13 +298,25 @@ void runModeTimeButtonHandler(boolean longPress)
 void runModeAlarmButtonHandler(boolean longPress)
 {
   if (longPress)
+  {
     changeRunMode(SET_ALARM);
+  }
+  else
+  {
+    toggleAlarm();
+  }
 }
 
 void setModeTimeButtonHandler(boolean longPress)
 {
   if (longPress)
   {
+    // Edge case that can happen when switching between 12/24 hour mode
+    if (timeSetTwelveHourMode && timeSetHours > 12)
+    {
+      timeSetHours = timeSetHours % 12;
+    }
+
     DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
     enableEntireDisplay();
     changeRunMode(RUN);
@@ -423,12 +437,14 @@ void ampmSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
-    outputSetTime();
-    enableEntireDisplay();
+    Display.outputBytes(0, 0, 0, timeSetAmPm ? SegmentDisplay::P : SegmentDisplay::A);
+    Display.setEnabled(true);
+    setLEDs(false, false, false, true);
+    digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
   }
   else
   {
-
+    disableEntireDisplay();
   }
 }
 
@@ -446,6 +462,11 @@ void noneSetModeCycleHandler()
 void twelveHourSetModeCycleHandler()
 {
   timeSetTwelveHourMode = !timeSetTwelveHourMode;
+
+  if (!timeSetTwelveHourMode)
+    return;
+
+  timeSetAmPm = timeSetHours > 12;
 }
 
 void hourTensSetModeCycleHandler()
@@ -478,7 +499,7 @@ void hourOnesSetModeCycleHandler()
   }
   else
   {
-    divisor = 5;
+    divisor = 4;
   }
 
   timeSetHours = tens*10 + ((ones + 1) % divisor);
@@ -518,6 +539,7 @@ void ampmSetModeCycleHandler()
 void outputSetTime()
 {
   Display.outputTime(timeSetHours, timeSetMinutes);
+  digitalWrite(AMPM_PIN, timeSetAmPm);
 }
 
 void cycleCurrentSetMode()
@@ -530,8 +552,11 @@ void cycleCurrentSetMode()
  */
 void proceedToNextSetMode()
 {
+  // For 24 hour mode, skip setting AM/PM
+  byte divisor = timeSetTwelveHourMode ? NUM_SET_MODES : NUM_SET_MODES - 1;
+
   // Warning: This assumes the enum values are listed in order of procession!
-  currentSetMode = (SetMode) ((currentSetMode + 1) % NUM_SET_MODES);
+  currentSetMode = (SetMode) ((currentSetMode + 1) % divisor);
 }
 
 /**
@@ -540,6 +565,7 @@ void proceedToNextSetMode()
 void toggleAlarm()
 {
   alarmEnabled = !alarmEnabled;
+  digitalWrite(ALRM_PIN, alarmEnabled);
 }
 
 /**
@@ -582,6 +608,7 @@ void outputTime()
 
   fetchTime(&hour, &minute, &ampm);
   Display.outputTime(hour, minute);
+  digitalWrite(AMPM_PIN, ampm);
 }
 
 /**
@@ -636,6 +663,8 @@ void disableEntireDisplay()
 {
   Display.setEnabled(false);
   setLEDs(false, false, false, false);
+  digitalWrite(AMPM_PIN, LOW);
+  digitalWrite(ALRM_PIN, LOW);
 }
 
 /**
@@ -645,6 +674,8 @@ void enableEntireDisplay()
 {
   Display.setEnabled(true);
   setLEDs(true, true, true, true);
+  digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
+  digitalWrite(ALRM_PIN, alarmEnabled ? HIGH : LOW);
 }
 
 /**

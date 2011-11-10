@@ -23,7 +23,7 @@
 #include "WProgram.h"
 
 #define NUM_RUN_MODES 4
-#define NUM_SET_MODES 6
+#define NUM_SET_MODES 7
 
 enum RunMode 
 {
