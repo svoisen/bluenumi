@@ -20,9 +20,10 @@
 #include <avr/interrupt.h> // Used for adding interrupts
 #include "Wire.h" // Used for communicating over I2C
 #include "DS1307RTC.h" // Library for RTC tasks
-#include "Bluenumi.h"
-#include "Display.h"
-#include "LEDController.h"
+#include "Bluenumi.h" // Locally-used data types
+#include "Display.h" // Numitron display control
+#include "LEDController.h" // Underlighting control
+#include "AudioController.h" // Piezo buzzer control
 #include "Bounce.h"
 
 /*******************************************************************************
@@ -32,7 +33,6 @@
  ******************************************************************************/
 #define AMPM_PIN 1 // Both RX and used for AMPM indicator LED
 #define ALRM_PIN 0 // Both TX and used for alarm indicator LED
-#define PIEZO_PIN 8 // Piezo alarm
 #define HZ_PIN 4 // 1 Hz pulse from DS1307 RTC
 #define TIME_BTN_PIN 5 // Time set/left button
 #define ALRM_BTN_PIN 2 // Alarm set/right button
@@ -108,7 +108,6 @@ Serial.println("Firmware Version 001");
   // Set up pin modes
   pinMode(AMPM_PIN, OUTPUT);
   pinMode(ALRM_PIN, OUTPUT);
-  pinMode(PIEZO_PIN, OUTPUT);
   pinMode(HZ_PIN, INPUT);
   pinMode(TIME_BTN_PIN, INPUT);
   pinMode(ALRM_BTN_PIN, INPUT);
