@@ -22,7 +22,7 @@
 #include "DS1307RTC.h" // Library for RTC tasks
 #include "Bluenumi.h"
 #include "Display.h"
-#include "Pattern.h"
+#include "LEDController.h"
 #include "Bounce.h"
 
 /*******************************************************************************
@@ -133,7 +133,7 @@ Serial.println("Firmware Version 001");
   Display.begin();
 
   // Start LED patterns
-  Pattern.begin();
+  LEDs.begin();
 
   // Map handlers
   mapModeHandlers();
@@ -233,8 +233,13 @@ void changeRunMode(enum RunMode newMode)
   switch (newMode)
   {
     case SET_TIME:
+      LEDs.setEnabled(false);
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
       changeSetMode(NONE);
+      break;
+
+    case RUN:
+      LEDs.setEnabled(true);
       break;
 
     default:
@@ -262,7 +267,7 @@ void changeSetMode(enum SetMode newMode)
  */
 void runModeHandler()
 {
-  Pattern.update();
+  LEDs.update();
 
   // Only update time display as necessary
   if (displayDirty) 
@@ -382,7 +387,7 @@ void hourTensSetModeHandler()
   {
     Display.outputDigits(0xFF, timeSetHours%10, timeSetMinutes/10, timeSetMinutes%10);
     Display.setEnabled(true);
-    setLEDs(false, true, true, true);
+    LEDs.setLEDStates(false, true, true, true);
   }
 }
 
@@ -397,7 +402,7 @@ void hourOnesSetModeHandler()
   {
     Display.outputDigits(timeSetHours/10, 0xFF, timeSetMinutes/10, timeSetMinutes%10);
     Display.setEnabled(true);
-    setLEDs(true, false, true, true);
+    LEDs.setLEDStates(true, false, true, true);
   }
 }
 
@@ -412,7 +417,7 @@ void minTensSetModeHandler()
   {
     Display.outputDigits(timeSetHours/10, timeSetHours%10, 0xFF, timeSetMinutes%10);
     Display.setEnabled(true);
-    setLEDs(true, true, false, true);
+    LEDs.setLEDStates(true, true, false, true);
   }
 }
 
@@ -427,7 +432,7 @@ void minOnesSetModeHandler()
   {
     Display.outputDigits(timeSetHours/10, timeSetHours%10, timeSetMinutes/10, 0xFF);
     Display.setEnabled(true);
-    setLEDs(true, true, true, false);
+    LEDs.setLEDStates(true, true, true, false);
   }
 }
 
@@ -437,7 +442,7 @@ void ampmSetModeHandler()
   {
     Display.outputBytes(0, 0, 0, timeSetAmPm ? SegmentDisplay::P : SegmentDisplay::A);
     Display.setEnabled(true);
-    setLEDs(false, false, false, true);
+    LEDs.setLEDStates(false, false, false, true);
     digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
   }
   else
@@ -567,18 +572,6 @@ void toggleAlarm()
 }
 
 /**
- * Helper method for quickly setting the ON/OFF state of the four blue
- * LEDs.
- */
-void setLEDs(boolean sec0, boolean sec1, boolean sec2, boolean sec3)
-{
-  digitalWrite(SECONDS0_PIN, sec0);
-  digitalWrite(SECONDS1_PIN, sec1);
-  digitalWrite(SECONDS2_PIN, sec2);
-  digitalWrite(SECONDS3_PIN, sec3);
-}
-
-/**
  * Used for blinking the display on and off. Determines if the display should 
  * be on (true) or off (false) using a set interval BLINK_DELAY.
  */
@@ -660,7 +653,7 @@ Serial.println(" alarm button press");
 void disableEntireDisplay()
 {
   Display.setEnabled(false);
-  Pattern.setEnabled(false);
+  LEDs.setEnabled(false);
   digitalWrite(AMPM_PIN, LOW);
   digitalWrite(ALRM_PIN, LOW);
 }
@@ -671,7 +664,7 @@ void disableEntireDisplay()
 void enableEntireDisplay()
 {
   Display.setEnabled(true);
-  Pattern.setEnabled(true);
+  LEDs.setEnabled(true);
   digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
   digitalWrite(ALRM_PIN, alarmEnabled ? HIGH : LOW);
 }

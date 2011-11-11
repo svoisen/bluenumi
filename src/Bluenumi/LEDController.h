@@ -17,8 +17,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  ******************************************************************************/
 
-#ifndef PATTERN_H_
-#define PATTERN_H_
+#ifndef LEDCONTROLLER_H_
+#define LEDCONTROLLER_H_
 
 #include "WProgram.h"
 #include "WConstants.h"
@@ -32,29 +32,33 @@
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object)->*(ptrToMember))
 
-class PatternGenerator
+class LEDController
 {
   public:
-    typedef void (PatternGenerator::*PatternHandler)();
+    typedef void (LEDController::*PatternHandler)();
     enum PatternType
     {
-      BREATHE
+      BREATHE,
+      ROLLING_BREATHE
     };
 
-    PatternGenerator();
+    LEDController();
     void begin();
     void update();
     void setType(enum PatternType);
     void setEnabled(bool);
+    void setLEDStates(bool, bool, bool, bool);
 
   private:
     void mapHandlers();
     enum PatternType currentType;
     bool enabled;
-    PatternHandler patternHandlerMap[1];
+    PatternHandler patternHandlerMap[2];
     void breatheHandler();
+    void rollingBreatheHandler();
+    float calculateBreatheVal(float, float);
 };
 
-extern PatternGenerator Pattern;
+extern LEDController LEDs;
 
-#endif // PATTERN_H_
+#endif // LEDCONTROLLER_H_

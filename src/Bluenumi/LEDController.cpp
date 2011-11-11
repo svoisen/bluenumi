@@ -17,17 +17,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  ******************************************************************************/
 
-#include "Pattern.h"
+#include "LEDController.h"
 
-PatternGenerator::PatternGenerator()
+LEDController::LEDController()
 {
   mapHandlers();
 }
 
-void PatternGenerator::begin()
+void LEDController::begin()
 {
   enabled = true;
-  currentType = BREATHE;
+  currentType = ROLLING_BREATHE;
   
   pinMode(SECONDS0_PIN, OUTPUT);
   pinMode(SECONDS1_PIN, OUTPUT);
@@ -35,7 +35,7 @@ void PatternGenerator::begin()
   pinMode(SECONDS3_PIN, OUTPUT);
 }
 
-void PatternGenerator::update()
+void LEDController::update()
 {
   if (!enabled)
     return;
@@ -43,34 +43,47 @@ void PatternGenerator::update()
   CALL_MEMBER_FN(this, patternHandlerMap[currentType])();
 }
 
-void PatternGenerator::setEnabled(bool value)
+void LEDController::setEnabled(bool value)
 {
-  if (enabled == value)
-    return;
-
   enabled = value;
-
-  if (!enabled)
-  {
-    digitalWrite(SECONDS0_PIN, LOW);
-    digitalWrite(SECONDS1_PIN, LOW);
-    digitalWrite(SECONDS2_PIN, LOW);
-    digitalWrite(SECONDS3_PIN, LOW);
-  }
+  setLEDStates(value, value, value, value);
 }
 
-void PatternGenerator::mapHandlers()
+void LEDController::setLEDStates(bool led0, bool led1, bool led2, bool led3)
 {
-  patternHandlerMap[BREATHE] = &PatternGenerator::breatheHandler;
+  digitalWrite(SECONDS0_PIN, led0);
+  digitalWrite(SECONDS1_PIN, led1);
+  digitalWrite(SECONDS2_PIN, led2);
+  digitalWrite(SECONDS3_PIN, led3);
 }
 
-void PatternGenerator::breatheHandler()
+void LEDController::mapHandlers()
 {
-  float val = (exp(sin(millis()/2000.0*PI)) - 0.36787944)*108.0;
+  patternHandlerMap[BREATHE] = &LEDController::breatheHandler;
+  patternHandlerMap[ROLLING_BREATHE] = &LEDController::rollingBreatheHandler;
+}
+
+void LEDController::breatheHandler()
+{
+  float val = calculateBreatheVal(PI/2.0, 0.0);
   analogWrite(SECONDS0_PIN, val);
   analogWrite(SECONDS1_PIN, val);
   analogWrite(SECONDS2_PIN, val);
   analogWrite(SECONDS3_PIN, val);
 }
 
-PatternGenerator Pattern = PatternGenerator();
+void LEDController::rollingBreatheHandler()
+{
+  float freqAdj = PI/2.0;
+  analogWrite(SECONDS3_PIN, calculateBreatheVal(freqAdj, 0.0));
+  analogWrite(SECONDS2_PIN, calculateBreatheVal(freqAdj, PI/4.0));
+  analogWrite(SECONDS1_PIN, calculateBreatheVal(freqAdj, PI/2.0)); 
+  analogWrite(SECONDS0_PIN, calculateBreatheVal(freqAdj, 3*PI/4.0));
+}
+
+float LEDController::calculateBreatheVal(float frequencyAdjust, float offset)
+{
+  return (exp(sin(millis()/1000.0*frequencyAdjust + offset)) - 0.36787944)*108.0;
+}
+
+LEDController LEDs = LEDController();
