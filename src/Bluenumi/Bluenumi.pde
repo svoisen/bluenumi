@@ -45,12 +45,15 @@
 #define DEBOUNCE_INTERVAL 50 // Interval to wait when debouncing buttons
 #define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
+#define UNBLANK_INTERVAL 3000 // Length of time to temp unblank display in 
+                              // run blank mode
 
 /*******************************************************************************
  *
  * Debug Defines
  *
  ******************************************************************************/
+//#define DEBUG true
 #define DEBUG_BAUD 9600
 
 /*******************************************************************************
@@ -66,6 +69,9 @@ boolean alarmEnabled = false;
 
 Bounce timeSetButtonDebouncer = Bounce(TIME_BTN_PIN, DEBOUNCE_INTERVAL);
 Bounce alarmSetButtonDebouncer = Bounce(ALRM_BTN_PIN, DEBOUNCE_INTERVAL);
+
+// Timer to track temporary display unblanking when in run blank mode
+unsigned long unblankTime = 0;
 
 // Set to true when time display needs updating
 volatile boolean displayDirty = true; 
@@ -149,7 +155,8 @@ Serial.println("Firmware Version 001");
 Serial.println("RTC not running; switching to set time mode");
 #endif
     // Start at default time
-    DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
+    DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, 
+        timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
 
     // Clock is not running, probably powering up for the first time, change 
     // mode to set time
@@ -160,11 +167,18 @@ Serial.println("RTC not running; switching to set time mode");
 void loop()
 {
   // Take care of any button presses first
-  if (timeSetButtonPressTime > 0)
+  if (timeSetButtonPressTime > 0 && alarmSetButtonPressTime > 0)
+  {
+    processDualButtonPress();
+  }
+  else if (timeSetButtonPressTime > 0)
+  {
     processTimeButtonPress();
-  
-  if (alarmSetButtonPressTime > 0)
+  }
+  else if (alarmSetButtonPressTime > 0)
+  {
     processAlarmButtonPress();
+  }
   
   // Call the handler function for the current mode (state)
   runModeHandlerMap[currentRunMode]();
@@ -184,6 +198,7 @@ void mapModeHandlers()
 {
   runModeHandlerMap[RUN] = &runModeHandler;
   runModeHandlerMap[SET_TIME] = &setTimeModeHandler;
+  runModeHandlerMap[RUN_BLANK] = &runBlankModeHandler;
 
   setModeHandlerMap[NONE] = &noneSetModeHandler;
   setModeHandlerMap[HR_12_24] = &hour12_24SetModeHandler;
@@ -202,10 +217,14 @@ void mapButtonHandlers()
   // Time button handlers
   timeButtonHandlerMap[RUN] = &runModeTimeButtonHandler;
   timeButtonHandlerMap[SET_TIME] = &setModeTimeButtonHandler;
+  timeButtonHandlerMap[RUN_BLANK] = &runBlankModeButtonHandler;
+  timeButtonHandlerMap[SET_ALARM] = &setAlarmModeTimeButtonHandler;
 
   // Alarm button handlers
   alarmButtonHandlerMap[RUN] = &runModeAlarmButtonHandler;
   alarmButtonHandlerMap[SET_TIME] = &setModeAlarmButtonHandler;
+  alarmButtonHandlerMap[RUN_BLANK] = &runBlankModeButtonHandler;
+  alarmButtonHandlerMap[SET_ALARM] = &setAlarmModeAlarmButtonHandler;
 }
 
 /**
@@ -238,7 +257,11 @@ void changeRunMode(enum RunMode newMode)
       break;
 
     case RUN:
-      LEDs.setEnabled(true);
+      enableEntireDisplay();
+      break;
+
+    case RUN_BLANK:
+      disableEntireDisplay();
       break;
 
     default:
@@ -260,29 +283,30 @@ void changeSetMode(enum SetMode newMode)
  *
  ******************************************************************************/
 
-/**
- * Handler for run mode (normal clock operating mode). This handler simply
- * outputs the current time when necessary.
- */
 void runModeHandler()
 {
   LEDs.update();
-
-  // Only update time display as necessary
-  if (displayDirty) 
-  {
-    outputTime();
-    displayDirty = false;
-  }
+  outputTime();
 }
 
-/**
- * Handler for set time mode.
- */
 void setTimeModeHandler()
 {
   // Call the set mode sub-mode handlers
   setModeHandlerMap[currentSetMode]();
+}
+
+void runBlankModeHandler()
+{
+  if (unblankTime == 0)
+    return;
+
+  outputTime();
+
+  if (millis() - unblankTime > UNBLANK_INTERVAL)
+  {
+    disableEntireDisplay();
+    unblankTime = 0;
+  }
 }
 
 /*******************************************************************************
@@ -319,7 +343,8 @@ void setModeTimeButtonHandler(boolean longPress)
       timeSetHours = timeSetHours % 12;
     }
 
-    DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
+    DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, 
+        timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
     enableEntireDisplay();
     changeRunMode(RUN);
   }
@@ -339,6 +364,27 @@ void setModeAlarmButtonHandler(boolean longPress)
   {
     proceedToNextSetMode();
   }
+}
+
+void runBlankModeButtonHandler(boolean longPress)
+{
+  if (longPress)
+  {
+    // NO-OP
+  }
+  else if (unblankTime == 0)
+  {
+    unblankTime = millis();
+    enableDisplayWithoutLEDs();
+  }
+}
+
+void setAlarmModeTimeButtonHandler(boolean longPress)
+{
+}
+
+void setAlarmModeAlarmButtonHandler(boolean longPress)
+{
 }
 
 /*******************************************************************************
@@ -593,12 +639,16 @@ boolean blinkShouldBeOn()
  */
 void outputTime()
 {
-  byte minute, hour;
-  boolean ampm;
+  if (displayDirty)
+  {
+    byte minute, hour;
+    boolean ampm;
 
-  fetchTime(&hour, &minute, &ampm);
-  Display.outputTime(hour, minute);
-  digitalWrite(AMPM_PIN, ampm);
+    fetchTime(&hour, &minute, &ampm);
+    Display.outputTime(hour, minute);
+    digitalWrite(AMPM_PIN, ampm);
+    displayDirty = false;
+  }
 }
 
 /**
@@ -614,9 +664,34 @@ boolean fetchTime(byte* hour, byte* minute, boolean* ampm)
   return true;
 }
 
+void processDualButtonPress()
+{
+  boolean longPress = timeSetButtonPressedLong() && alarmSetButtonPressedLong();
+
+  if ((alarmSetButtonDebouncer.read() && timeSetButtonDebouncer.read()) || longPress)
+  {
+#if DEBUG
+Serial.print(longPress ? "Long" : "Short");
+Serial.println(" dual button press");
+#endif
+    timeSetButtonPressTime = 0;
+    alarmSetButtonPressTime = 0;
+
+    // Only use run mode for now
+    if (currentRunMode == RUN)
+    {
+      changeRunMode(RUN_BLANK);
+    }
+    else if (currentRunMode == RUN_BLANK)
+    {
+      changeRunMode(RUN);
+    }
+  }
+}
+
 void processTimeButtonPress()
 {
-  boolean longPress = (!timeSetButtonDebouncer.read() && (millis() - timeSetButtonPressTime >= LONG_PRESS));
+  boolean longPress = timeSetButtonPressedLong();
 
   if (timeSetButtonDebouncer.read() || longPress) 
   {
@@ -632,7 +707,7 @@ Serial.println(" time button press");
 
 void processAlarmButtonPress()
 {
-  boolean longPress = (!alarmSetButtonDebouncer.read() && (millis() - alarmSetButtonPressTime >= LONG_PRESS));
+  boolean longPress = alarmSetButtonPressedLong();
 
   if (alarmSetButtonDebouncer.read() || longPress)
   {
@@ -644,6 +719,16 @@ Serial.println(" alarm button press");
     alarmSetButtonPressTime = 0;
     alarmButtonHandlerMap[currentRunMode](longPress);
   }
+}
+
+boolean alarmSetButtonPressedLong()
+{
+  return (!alarmSetButtonDebouncer.read() && (millis() - alarmSetButtonPressTime >= LONG_PRESS));
+}
+
+boolean timeSetButtonPressedLong()
+{
+  return (!timeSetButtonDebouncer.read() && (millis() - timeSetButtonPressTime >= LONG_PRESS));
 }
 
 /**
@@ -662,8 +747,13 @@ void disableEntireDisplay()
  */
 void enableEntireDisplay()
 {
-  Display.setEnabled(true);
+  enableDisplayWithoutLEDs();
   LEDs.setEnabled(true);
+}
+
+void enableDisplayWithoutLEDs()
+{
+  Display.setEnabled(true);
   digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
   digitalWrite(ALRM_PIN, alarmEnabled ? HIGH : LOW);
 }
