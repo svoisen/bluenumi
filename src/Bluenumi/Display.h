@@ -18,8 +18,8 @@
 #ifndef DISPLAY_H_
 #define DISPLAY_H_
 
-#include "WProgram.h"
-#include "WConstants.h"
+#include <WProgram.h>
+#include <WConstants.h>
 #include <inttypes.h>
 
 #define DATA_PIN 13

@@ -28,4 +28,6 @@ You should have received a copy of the GNU Lesser General Public License along w
 Schematics and Board Layout License
 -----------------------------------
 
+Copyright (C) 2009 - 2011 [Sean Voisen](http://sean.voisen.org)
+
 Schematics and board layout are released under the [Creative Commons Attribution-ShareAlike 3.0 Unported](http://creativecommons.org/licenses/by-sa/3.0/) license.

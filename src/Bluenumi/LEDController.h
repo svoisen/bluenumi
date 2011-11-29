@@ -18,8 +18,8 @@
 #ifndef LEDCONTROLLER_H_
 #define LEDCONTROLLER_H_
 
-#include "WProgram.h"
-#include "WConstants.h"
+#include <WProgram.h>
+#include <WConstants.h>
 #include <inttypes.h>
 #include <math.h>
 
@@ -43,6 +43,8 @@ class LEDController
     LEDController();
     void begin();
     void update();
+    void pause();
+    void resume();
     void setType(enum PatternType);
     void setEnabled(bool);
     void setLEDStates(bool, bool, bool, bool);
@@ -51,6 +53,7 @@ class LEDController
     void mapHandlers();
     enum PatternType currentType;
     bool enabled;
+    bool paused;
     PatternHandler patternHandlerMap[2];
     void breatheHandler();
     void rollingBreatheHandler();

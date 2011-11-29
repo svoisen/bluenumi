@@ -25,6 +25,7 @@ LEDController::LEDController()
 void LEDController::begin()
 {
   enabled = true;
+  paused = false;
   currentType = ROLLING_BREATHE;
   
   pinMode(SECONDS0_PIN, OUTPUT);
@@ -35,10 +36,20 @@ void LEDController::begin()
 
 void LEDController::update()
 {
-  if (!enabled)
+  if (!enabled || paused)
     return;
 
   CALL_MEMBER_FN(this, patternHandlerMap[currentType])();
+}
+
+void LEDController::pause()
+{
+  paused = true;
+}
+
+void LEDController::resume()
+{
+  paused = false;
 }
 
 void LEDController::setEnabled(bool value)

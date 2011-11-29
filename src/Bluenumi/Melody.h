@@ -20,6 +20,9 @@
 #ifndef MELODY_H_
 #define MELODY_H_
 
+#include <inttypes.h>
+
+#define NOTE_RST 0
 #define NOTE_B0  31
 #define NOTE_C1  33
 #define NOTE_CS1 35
@@ -122,18 +125,18 @@
 
 struct Melody
 {
-  int *notes;
-  int *durations;
+  uint16_t *notes;
+  uint16_t *durations;
 
-  Melody(int *notes, int *durations)
+  Melody(uint16_t *notes, uint16_t *durations)
   {
     this->notes = notes;
     this->durations = durations;
   }
 };
 
-extern int TONE_UP_NOTES[];
-extern int TONE_UP_DURATIONS[];
+extern uint16_t TONE_UP_NOTES[];
+extern uint16_t TONE_UP_DURATIONS[];
 extern Melody TONE_UP_MELODY;
 
 #endif // MELODY_H_

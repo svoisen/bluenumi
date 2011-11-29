@@ -20,6 +20,8 @@
 #ifndef AUDIOCONTROLLER_H_
 #define AUDIOCONTROLLER_H_
 
+#include <WProgram.h>
+#include <inttypes.h>
 #include "Melody.h"
 
 #define PIEZO_PIN 8
@@ -27,7 +29,14 @@
 class AudioController
 {
   public:
+    AudioController();
+    void singleBeep();
+    void doubleBeep();
     void playMelody(Melody*);
+
+  private:
+    inline void playNote(uint16_t, uint16_t);
+    void outputTone(int, int);
 };
 
 extern AudioController Audio;

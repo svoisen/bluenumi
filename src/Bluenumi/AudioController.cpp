@@ -16,6 +16,21 @@
  ******************************************************************************/
 
 #include "AudioController.h"
+#include "Display.h"
+#include "LEDController.h"
+
+AudioController::AudioController()
+{
+}
+
+void AudioController::singleBeep()
+{
+  playNote(NOTE_G5, DUR_ET);
+}
+
+void AudioController::doubleBeep()
+{
+}
 
 void AudioController::playMelody(Melody *melody)
 {
@@ -26,3 +41,16 @@ void AudioController::playMelody(Melody *melody)
 {
   //for (int i = 0; i < melody->notes
 }*/
+
+inline void AudioController::playNote(uint16_t note, uint16_t duration)
+{
+  LEDs.setEnabled(false);
+  Display.setEnabled(false);
+  tone(PIEZO_PIN, note);
+  delay(duration);
+  noTone(PIEZO_PIN);
+  LEDs.setEnabled(true);
+  Display.setEnabled(true);
+}
+
+AudioController Audio = AudioController();

@@ -24,7 +24,7 @@
 #include "Display.h" // Numitron display control
 #include "LEDController.h" // Underlighting control
 #include "AudioController.h" // Piezo buzzer control
-#include "Bounce.h"
+#include "Bounce.h" // Button debouncing
 
 /*******************************************************************************
  *
@@ -42,7 +42,7 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 50 // Interval to wait when debouncing buttons
+#define DEBOUNCE_INTERVAL 40 // Interval to wait when debouncing buttons
 #define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 #define UNBLANK_INTERVAL 3000 // Length of time to temp unblank display in 
@@ -612,6 +612,7 @@ void proceedToNextSetMode()
  */
 void toggleAlarm()
 {
+  Audio.singleBeep();
   alarmEnabled = !alarmEnabled;
   digitalWrite(ALRM_PIN, alarmEnabled);
 }
