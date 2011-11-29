@@ -65,6 +65,7 @@ byte alarmHours, timeSetHours = 12;
 byte alarmMinutes, timeSetMinutes = 0;
 boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
+boolean alarmAmPm = false;
 boolean alarmEnabled = false;
 
 Bounce timeSetButtonDebouncer = Bounce(TIME_BTN_PIN, DEBOUNCE_INTERVAL);
@@ -198,6 +199,7 @@ void mapModeHandlers()
 {
   runModeHandlerMap[RUN] = &runModeHandler;
   runModeHandlerMap[SET_TIME] = &setTimeModeHandler;
+  runModeHandlerMap[SET_ALARM] = &setAlarmModeHandler;
   runModeHandlerMap[RUN_BLANK] = &runBlankModeHandler;
 
   setModeHandlerMap[NONE] = &noneSetModeHandler;
@@ -218,13 +220,13 @@ void mapButtonHandlers()
   timeButtonHandlerMap[RUN] = &runModeTimeButtonHandler;
   timeButtonHandlerMap[SET_TIME] = &setModeTimeButtonHandler;
   timeButtonHandlerMap[RUN_BLANK] = &runBlankModeButtonHandler;
-  timeButtonHandlerMap[SET_ALARM] = &setAlarmModeTimeButtonHandler;
+  timeButtonHandlerMap[SET_ALARM] = &setModeTimeButtonHandler;
 
   // Alarm button handlers
   alarmButtonHandlerMap[RUN] = &runModeAlarmButtonHandler;
   alarmButtonHandlerMap[SET_TIME] = &setModeAlarmButtonHandler;
   alarmButtonHandlerMap[RUN_BLANK] = &runBlankModeButtonHandler;
-  alarmButtonHandlerMap[SET_ALARM] = &setAlarmModeAlarmButtonHandler;
+  alarmButtonHandlerMap[SET_ALARM] = &setModeAlarmButtonHandler;
 }
 
 /**
@@ -252,7 +254,15 @@ void changeRunMode(enum RunMode newMode)
   {
     case SET_TIME:
       LEDs.setEnabled(false);
-      fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm);
+      fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm, &timeSetTwelveHourMode);
+      changeSetMode(NONE);
+      break;
+
+    case SET_ALARM:
+      LEDs.setEnabled(false);
+      timeSetHours = alarmHours;
+      timeSetMinutes = alarmMinutes;
+      timeSetAmPm = alarmAmPm;
       changeSetMode(NONE);
       break;
 
@@ -292,6 +302,11 @@ void runModeHandler()
 void setTimeModeHandler()
 {
   // Call the set mode sub-mode handlers
+  setModeHandlerMap[currentSetMode]();
+}
+
+void setAlarmModeHandler()
+{
   setModeHandlerMap[currentSetMode]();
 }
 
@@ -335,7 +350,7 @@ void runModeAlarmButtonHandler(boolean longPress)
 
 void setModeTimeButtonHandler(boolean longPress)
 {
-  if (longPress)
+  if (longPress && currentRunMode == SET_TIME)
   {
     // Edge case that can happen when switching between 12/24 hour mode
     if (timeSetTwelveHourMode && timeSetHours > 12)
@@ -356,9 +371,10 @@ void setModeTimeButtonHandler(boolean longPress)
 
 void setModeAlarmButtonHandler(boolean longPress)
 {
-  if (longPress)
+  if (longPress && currentRunMode == SET_ALARM)
   {
-    // NO-OP
+    enableEntireDisplay();
+    changeRunMode(RUN);
   }
   else
   {
@@ -377,14 +393,6 @@ void runBlankModeButtonHandler(boolean longPress)
     unblankTime = millis();
     enableDisplayWithoutLEDs();
   }
-}
-
-void setAlarmModeTimeButtonHandler(boolean longPress)
-{
-}
-
-void setAlarmModeAlarmButtonHandler(boolean longPress)
-{
 }
 
 /*******************************************************************************
@@ -612,7 +620,6 @@ void proceedToNextSetMode()
  */
 void toggleAlarm()
 {
-  Audio.singleBeep();
   alarmEnabled = !alarmEnabled;
   digitalWrite(ALRM_PIN, alarmEnabled);
 }
@@ -655,7 +662,7 @@ void outputTime()
 /**
  * Fetches the current time from the DS1307 RTC.
  */
-boolean fetchTime(byte* hour, byte* minute, boolean* ampm)
+boolean fetchTime(byte* hour, byte* minute, boolean* ampm, boolean* twelveHourMode)
 {
   byte second, dayOfWeek, dayOfMonth, month, year;
   bool twelveHourMode;
@@ -708,7 +715,17 @@ Serial.println(" time button press");
 
 void processAlarmButtonPress()
 {
+  static boolean beeped = false;
   boolean longPress = alarmSetButtonPressedLong();
+
+  // Beep on button down instead of waiting for release
+  if (currentRunMode == RUN && !beeped)
+  {
+    Display.setEnabled(false);
+    LEDs.setEnabled(false);
+    Audio.singleBeep();
+    beeped = true;
+  }
 
   if (alarmSetButtonDebouncer.read() || longPress)
   {
@@ -717,17 +734,20 @@ Serial.print(longPress ? "Long" : "Short");
 Serial.println(" alarm button press");
 #endif
   
+    Display.setEnabled(true);
+    LEDs.setEnabled(true);
     alarmSetButtonPressTime = 0;
+    beeped = false;
     alarmButtonHandlerMap[currentRunMode](longPress);
   }
 }
 
-boolean alarmSetButtonPressedLong()
+inline boolean alarmSetButtonPressedLong()
 {
   return (!alarmSetButtonDebouncer.read() && (millis() - alarmSetButtonPressTime >= LONG_PRESS));
 }
 
-boolean timeSetButtonPressedLong()
+inline boolean timeSetButtonPressedLong()
 {
   return (!timeSetButtonDebouncer.read() && (millis() - timeSetButtonPressTime >= LONG_PRESS));
 }
