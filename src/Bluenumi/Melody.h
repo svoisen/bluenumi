@@ -127,11 +127,13 @@ struct Melody
 {
   uint16_t *notes;
   uint16_t *durations;
+  uint16_t length;
 
-  Melody(uint16_t *notes, uint16_t *durations)
+  Melody(uint16_t *notes, uint16_t *durations, uint16_t length)
   {
     this->notes = notes;
     this->durations = durations;
+    this->length = length;
   }
 };
 

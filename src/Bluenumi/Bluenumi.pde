@@ -253,6 +253,7 @@ void changeRunMode(enum RunMode newMode)
   switch (newMode)
   {
     case SET_TIME:
+      Audio.playMelody(&TONE_UP_MELODY);
       LEDs.setEnabled(false);
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm, &timeSetTwelveHourMode);
       changeSetMode(NONE);
@@ -622,6 +623,7 @@ void toggleAlarm()
 {
   alarmEnabled = !alarmEnabled;
   digitalWrite(ALRM_PIN, alarmEnabled);
+  Audio.singleBeep();
 }
 
 /**
@@ -650,9 +652,9 @@ void outputTime()
   if (displayDirty)
   {
     byte minute, hour;
-    boolean ampm;
+    boolean ampm, twelveHourMode;
 
-    fetchTime(&hour, &minute, &ampm);
+    fetchTime(&hour, &minute, &ampm, &twelveHourMode);
     Display.outputTime(hour, minute);
     digitalWrite(AMPM_PIN, ampm);
     displayDirty = false;
@@ -665,9 +667,8 @@ void outputTime()
 boolean fetchTime(byte* hour, byte* minute, boolean* ampm, boolean* twelveHourMode)
 {
   byte second, dayOfWeek, dayOfMonth, month, year;
-  bool twelveHourMode;
   DS1307RTC.getDateTime(&second, minute, hour, &dayOfWeek, &dayOfMonth, 
-      &month, &year, &twelveHourMode, (bool*)ampm);
+      &month, &year, (bool*)twelveHourMode, (bool*)ampm);
   
   return true;
 }
@@ -715,17 +716,7 @@ Serial.println(" time button press");
 
 void processAlarmButtonPress()
 {
-  static boolean beeped = false;
   boolean longPress = alarmSetButtonPressedLong();
-
-  // Beep on button down instead of waiting for release
-  if (currentRunMode == RUN && !beeped)
-  {
-    Display.setEnabled(false);
-    LEDs.setEnabled(false);
-    Audio.singleBeep();
-    beeped = true;
-  }
 
   if (alarmSetButtonDebouncer.read() || longPress)
   {
@@ -734,21 +725,20 @@ Serial.print(longPress ? "Long" : "Short");
 Serial.println(" alarm button press");
 #endif
   
-    Display.setEnabled(true);
-    LEDs.setEnabled(true);
     alarmSetButtonPressTime = 0;
-    beeped = false;
     alarmButtonHandlerMap[currentRunMode](longPress);
   }
 }
 
 inline boolean alarmSetButtonPressedLong()
 {
+  alarmSetButtonDebouncer.update();
   return (!alarmSetButtonDebouncer.read() && (millis() - alarmSetButtonPressTime >= LONG_PRESS));
 }
 
 inline boolean timeSetButtonPressedLong()
 {
+  timeSetButtonDebouncer.update();
   return (!timeSetButtonDebouncer.read() && (millis() - timeSetButtonPressTime >= LONG_PRESS));
 }
 

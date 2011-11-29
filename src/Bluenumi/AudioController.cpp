@@ -16,6 +16,8 @@
  ******************************************************************************/
 
 #include "AudioController.h"
+#include "Display.h"
+#include "LEDController.h"
 
 AudioController::AudioController()
 {
@@ -23,7 +25,13 @@ AudioController::AudioController()
 
 void AudioController::singleBeep()
 {
+  Display.setEnabled(false);
+  LEDs.setEnabled(false);
+
   playNote(NOTE_D6, DUR_ET);
+
+  Display.setEnabled(true);
+  LEDs.setEnabled(true);
 }
 
 void AudioController::doubleBeep()
@@ -32,7 +40,16 @@ void AudioController::doubleBeep()
 
 void AudioController::playMelody(Melody *melody)
 {
+  Display.setEnabled(false);
+  LEDs.setEnabled(false);
 
+  for (int i = 0; i < melody->length; i++)
+  {
+    playNote(melody->notes[i], melody->durations[i]);
+  }
+
+  Display.setEnabled(true);
+  LEDs.setEnabled(true);
 }
 
 /*void AudioController::playMelodyBackwards(Melody *melody)
