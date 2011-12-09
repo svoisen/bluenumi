@@ -45,22 +45,22 @@ void DS1307::setDateTime(
   uint8_t controlRegister )
 {
   Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.send(0);
-  Wire.send(decToBcd(second) | (startClock ? 0x00 : 0x80 )); // 0 to bit 7 starts the clock, 1 stops
-  Wire.send(decToBcd(minute));
+  Wire.write((uint8_t)0);
+  Wire.write(decToBcd(second) | (startClock ? 0x00 : 0x80 )); // 0 to bit 7 starts the clock, 1 stops
+  Wire.write(decToBcd(minute));
 
   if (twelveHourMode) 
   {
-    Wire.send(decToBcd(hour) | ( ampm ? 0x60 : 0x40 ) );
+    Wire.write(decToBcd(hour) | ( ampm ? 0x60 : 0x40 ) );
   }
   else {
-    Wire.send( decToBcd( hour ) );
+    Wire.write( decToBcd( hour ) );
   }
-  Wire.send( decToBcd( dayOfWeek ) );
-  Wire.send( decToBcd( dayOfMonth ) );
-  Wire.send( decToBcd( month ) );
-  Wire.send( decToBcd( year ) );
-  Wire.send( controlRegister );
+  Wire.write( decToBcd( dayOfWeek ) );
+  Wire.write( decToBcd( dayOfMonth ) );
+  Wire.write( decToBcd( month ) );
+  Wire.write( decToBcd( year ) );
+  Wire.write( controlRegister );
   Wire.endTransmission();
 }
 
@@ -68,12 +68,12 @@ bool DS1307::isRunning()
 {
   // Reset the register pointer
   Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.send(0);
+  Wire.write((uint8_t)0);
   Wire.endTransmission();
   
   Wire.requestFrom(DS1307_I2C_ADDRESS, 1);
   
-  if (Wire.receive() & 0x80) 
+  if (Wire.read() & 0x80) 
     return false;
   
   return true;
@@ -92,17 +92,17 @@ void DS1307::getDateTime(
 {
   // Reset the register pointer
   Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.send(0);
+  Wire.write((uint8_t)0);
   Wire.endTransmission();
   Wire.requestFrom(DS1307_I2C_ADDRESS, 7);
 
-  *second     = bcdToDec(Wire.receive() & 0x7f); // Mask out the CH bit
-  *minute     = bcdToDec(Wire.receive());
-  *hour       = Wire.receive();
-  *dayOfWeek  = bcdToDec(Wire.receive());
-  *dayOfMonth = bcdToDec(Wire.receive());
-  *month      = bcdToDec(Wire.receive());
-  *year       = bcdToDec(Wire.receive());
+  *second     = bcdToDec(Wire.read() & 0x7f); // Mask out the CH bit
+  *minute     = bcdToDec(Wire.read());
+  *hour       = Wire.read();
+  *dayOfWeek  = bcdToDec(Wire.read());
+  *dayOfMonth = bcdToDec(Wire.read());
+  *month      = bcdToDec(Wire.read());
+  *year       = bcdToDec(Wire.read());
   *twelveHourMode = (*hour & 0x40) == 0 ? false : true;
   
   if( *twelveHourMode ) {

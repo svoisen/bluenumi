@@ -18,8 +18,7 @@
 #ifndef LEDCONTROLLER_H_
 #define LEDCONTROLLER_H_
 
-#include <WProgram.h>
-#include <WConstants.h>
+#include <Arduino.h>
 #include <inttypes.h>
 #include <math.h>
 

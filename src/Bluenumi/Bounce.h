@@ -28,6 +28,7 @@
 #ifndef Bounce_h
 #define Bounce_h
 
+#include <Arduino.h>
 #include <inttypes.h>
 
 class Bounce

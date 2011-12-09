@@ -20,7 +20,7 @@
 #ifndef AUDIOCONTROLLER_H_
 #define AUDIOCONTROLLER_H_
 
-#include <WProgram.h>
+#include <Arduino.h>
 #include <inttypes.h>
 #include "Melody.h"
 
