@@ -62,7 +62,8 @@
  * Variables
  *
  ******************************************************************************/
-byte alarmHours, timeSetHours = 12;
+byte alarmHours = 12; 
+byte timeSetHours = 12;
 //byte alarmMinutes, timeSetMinutes = 0;
 byte alarmMinutes = 1;
 byte timeSetMinutes = 0;
@@ -701,6 +702,9 @@ void checkAlarm(byte currentHours, byte currentMinutes, boolean currentAmPm, boo
       ((currentAmPm == alarmAmPm && twelveHourMode == true) || twelveHourMode == false))
   {
     // Turn on the alarm
+#if DEBUG
+Serial.println("Turning on alarm");
+#endif
     changeRunMode(RUN_ALARM);
   }
 }
