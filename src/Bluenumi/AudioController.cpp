@@ -28,7 +28,7 @@ void AudioController::singleBeep()
   Display.setEnabled(false);
   LEDs.setEnabled(false);
 
-  playNote(NOTE_D6, DUR_ET);
+  playNote(2048, DUR_ET);
 
   Display.setEnabled(true);
   LEDs.setEnabled(true);

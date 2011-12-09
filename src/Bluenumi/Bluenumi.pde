@@ -45,6 +45,7 @@
 #define DEBOUNCE_INTERVAL 40 // Interval to wait when debouncing buttons
 #define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
+
 #define UNBLANK_INTERVAL 3000 // Length of time to temp unblank display in 
                               // run blank mode
 
@@ -61,12 +62,16 @@
  * Variables
  *
  ******************************************************************************/
-byte alarmHours, timeSetHours = 12;
-byte alarmMinutes, timeSetMinutes = 0;
+byte alarmHours = 12; 
+byte timeSetHours = 12;
+//byte alarmMinutes, timeSetMinutes = 0;
+byte alarmMinutes = 1;
+byte timeSetMinutes = 0;
 boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
 boolean alarmAmPm = false;
 boolean alarmEnabled = false;
+boolean alarmRecentlySnuffed = false;
 
 Bounce timeSetButtonDebouncer = Bounce(TIME_BTN_PIN, DEBOUNCE_INTERVAL);
 Bounce alarmSetButtonDebouncer = Bounce(ALRM_BTN_PIN, DEBOUNCE_INTERVAL);
@@ -150,7 +155,7 @@ Serial.println("Firmware Version 001");
   digitalWrite(ALRM_PIN, alarmEnabled);
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
-  if (!DS1307RTC.isRunning()) 
+  //if (!DS1307RTC.isRunning()) 
   {
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
@@ -161,7 +166,8 @@ Serial.println("RTC not running; switching to set time mode");
 
     // Clock is not running, probably powering up for the first time, change 
     // mode to set time
-    changeRunMode(SET_TIME);
+    //changeRunMode(SET_TIME);
+    changeRunMode(RUN);
   }
 }
 
@@ -201,6 +207,7 @@ void mapModeHandlers()
   runModeHandlerMap[SET_TIME] = &setTimeModeHandler;
   runModeHandlerMap[SET_ALARM] = &setAlarmModeHandler;
   runModeHandlerMap[RUN_BLANK] = &runBlankModeHandler;
+  runModeHandlerMap[RUN_ALARM] = &runAlarmModeHandler;
 
   setModeHandlerMap[NONE] = &noneSetModeHandler;
   setModeHandlerMap[HR_12_24] = &hour12_24SetModeHandler;
@@ -275,6 +282,10 @@ void changeRunMode(enum RunMode newMode)
       disableEntireDisplay();
       break;
 
+    case RUN_ALARM:
+      enableEntireDisplay();
+      break;
+
     default:
       // NO-OP
       break;
@@ -297,7 +308,7 @@ void changeSetMode(enum SetMode newMode)
 void runModeHandler()
 {
   LEDs.update();
-  outputTime();
+  updateTime();
 }
 
 void setTimeModeHandler()
@@ -316,13 +327,21 @@ void runBlankModeHandler()
   if (unblankTime == 0)
     return;
 
-  outputTime();
+  updateTime();
 
   if (millis() - unblankTime > UNBLANK_INTERVAL)
   {
     disableEntireDisplay();
     unblankTime = 0;
   }
+}
+
+void runAlarmModeHandler()
+{
+  updateTime();
+
+  Audio.singleBeep();
+  delay(DUR_ET);
 }
 
 /*******************************************************************************
@@ -645,9 +664,9 @@ boolean blinkShouldBeOn()
 }
 
 /**
- * Display the current time on the numitrons. 
+ * Display the current time on the numitrons.
  */
-void outputTime()
+void updateTime()
 {
   if (displayDirty)
   {
@@ -655,9 +674,38 @@ void outputTime()
     boolean ampm, twelveHourMode;
 
     fetchTime(&hour, &minute, &ampm, &twelveHourMode);
+
     Display.outputTime(hour, minute);
     digitalWrite(AMPM_PIN, ampm);
+
+    checkAlarm(hour, minute, ampm, twelveHourMode);
+
     displayDirty = false;
+  }
+}
+
+/**
+ * Checks to see if the alarm needs to be turned on
+ */
+void checkAlarm(byte currentHours, byte currentMinutes, boolean currentAmPm, boolean twelveHourMode)
+{
+  if (currentRunMode == RUN_ALARM && currentMinutes != alarmMinutes)
+  {
+    // Turn off the alarm once a minute has passed if no button was pressed
+    changeRunMode(RUN);
+  }
+  if (alarmEnabled && 
+      (currentRunMode == RUN || currentRunMode == RUN_BLANK) && 
+      !alarmRecentlySnuffed &&
+      currentHours == alarmHours && 
+      currentMinutes == alarmMinutes &&
+      ((currentAmPm == alarmAmPm && twelveHourMode == true) || twelveHourMode == false))
+  {
+    // Turn on the alarm
+#if DEBUG
+Serial.println("Turning on alarm");
+#endif
+    changeRunMode(RUN_ALARM);
   }
 }
 

@@ -20,7 +20,7 @@
 #ifndef BLUENUMI_h
 #define BLUENUMI_h
 
-#include "WProgram.h"
+#include <Arduino.h>
 
 #define NUM_RUN_MODES 4
 #define NUM_SET_MODES 7
@@ -29,6 +29,7 @@ enum RunMode
 {
   RUN = 0,
   RUN_BLANK,
+  RUN_ALARM,
   SET_TIME,
   SET_ALARM
 }; 
