@@ -62,16 +62,18 @@
  * Variables
  *
  ******************************************************************************/
-byte alarmHours = 12; 
 byte timeSetHours = 12;
-//byte alarmMinutes, timeSetMinutes = 0;
-byte alarmMinutes = 1;
 byte timeSetMinutes = 0;
 boolean timeSetTwelveHourMode = true;
 boolean timeSetAmPm = false;
+
+byte alarmHours = 12; 
+byte alarmMinutes = 0;
 boolean alarmAmPm = false;
 boolean alarmEnabled = false;
 boolean alarmRecentlySnuffed = false;
+
+boolean skipNextBlink = false;
 
 Bounce timeSetButtonDebouncer = Bounce(TIME_BTN_PIN, DEBOUNCE_INTERVAL);
 Bounce alarmSetButtonDebouncer = Bounce(ALRM_BTN_PIN, DEBOUNCE_INTERVAL);
@@ -155,7 +157,7 @@ Serial.println("Firmware Version 001");
   digitalWrite(ALRM_PIN, alarmEnabled);
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
-  //if (!DS1307RTC.isRunning()) 
+  if (!DS1307RTC.isRunning()) 
   {
 #if DEBUG
 Serial.println("RTC not running; switching to set time mode");
@@ -166,8 +168,7 @@ Serial.println("RTC not running; switching to set time mode");
 
     // Clock is not running, probably powering up for the first time, change 
     // mode to set time
-    //changeRunMode(SET_TIME);
-    changeRunMode(RUN);
+    changeRunMode(SET_TIME);
   }
 }
 
@@ -513,9 +514,14 @@ void ampmSetModeHandler()
 {
   if (blinkShouldBeOn())
   {
-    Display.outputBytes(0, 0, 0, timeSetAmPm ? SegmentDisplay::P : SegmentDisplay::A);
+    Display.outputBytes(
+        0,
+        timeSetAmPm ? SegmentDisplay::P : SegmentDisplay::A, 
+        SegmentDisplay::M,
+        0
+    );
     Display.setEnabled(true);
-    LEDs.setLEDStates(false, false, false, true);
+    LEDs.setLEDStates(true, true, true, true);
     digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
   }
   else
@@ -620,6 +626,7 @@ void outputSetTime()
 
 void cycleCurrentSetMode()
 {
+  skipNextBlink = true;
   setModeCycleHandlerMap[currentSetMode]();
 }
 
@@ -656,7 +663,16 @@ boolean blinkShouldBeOn()
 
   if (millis() - lastBlinkTime >= BLINK_DELAY) 
   {
-    blinkOn = !blinkOn;
+    if (skipNextBlink)
+    {
+      blinkOn = true;
+      skipNextBlink = false;
+    }
+    else
+    {
+      blinkOn = !blinkOn;
+    }
+
     lastBlinkTime = millis();
   }
 

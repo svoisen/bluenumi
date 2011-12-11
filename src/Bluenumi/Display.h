@@ -26,15 +26,41 @@
 #define CLK_PIN 6
 #define OE_PIN 7
 
+/**
+ * Display segment mapping is as follows:
+ *
+ * AAAAA
+ * B   C
+ * B   C
+ * DDDDD
+ * E   F
+ * E   F
+ * GGGGG
+ *
+ * BIT 0 is LSB
+ *
+ * BIT 0 = E
+ * BIT 1 = G
+ * BIT 2 = D
+ * BIT 3 = B
+ * BIT 4 = A
+ * BIT 5 = F
+ * BIT 6 = C
+ * BIT 7 = DP
+ *
+ */
+
 class SegmentDisplay
 {
   public:
     enum CharCode
     {
-      A = 0b01111101,
-      P = 0b01011101,
-      H = 0b01101101,
-      R = 0b00000101
+      A     = 0b01111101,
+      P     = 0b01011101,
+      H     = 0b01101101,
+      R     = 0b00000101,
+      M     = 0b00110101,
+      DASH  = 0b00000100
     };
     
     SegmentDisplay();
