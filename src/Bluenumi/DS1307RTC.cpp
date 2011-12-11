@@ -42,10 +42,10 @@ void DS1307::setDateTime(
   bool twelveHourMode,
   bool ampm,
   bool startClock,
-  uint8_t controlRegister )
+  uint8_t controlRegister) 
 {
   Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.write((uint8_t)0);
+  Wire.write((uint8_t) 0x00);
   Wire.write(decToBcd(second) | (startClock ? 0x00 : 0x80 )); // 0 to bit 7 starts the clock, 1 stops
   Wire.write(decToBcd(minute));
 
@@ -53,9 +53,11 @@ void DS1307::setDateTime(
   {
     Wire.write(decToBcd(hour) | ( ampm ? 0x60 : 0x40 ) );
   }
-  else {
+  else 
+  {
     Wire.write( decToBcd( hour ) );
   }
+
   Wire.write( decToBcd( dayOfWeek ) );
   Wire.write( decToBcd( dayOfMonth ) );
   Wire.write( decToBcd( month ) );
@@ -66,10 +68,7 @@ void DS1307::setDateTime(
 
 bool DS1307::isRunning()
 {
-  // Reset the register pointer
-  Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.write((uint8_t)0);
-  Wire.endTransmission();
+  setRegisterPointer(0x00);
   
   Wire.requestFrom(DS1307_I2C_ADDRESS, 1);
   
@@ -77,6 +76,31 @@ bool DS1307::isRunning()
     return false;
   
   return true;
+}
+
+void DS1307::setRamData()
+{
+  Wire.beginTransmission(DS1307_I2C_ADDRESS);
+  Wire.write((uint8_t) 0x08);
+
+  for (uint8_t i = 0; i < RAM_SIZE; i++)
+  {
+    Wire.write(ramBuffer[i]);
+  }
+
+  Wire.endTransmission();
+}
+
+void DS1307::getRamData()
+{
+  setRegisterPointer(0x08);
+
+  Wire.requestFrom(DS1307_I2C_ADDRESS, RAM_SIZE);
+
+  for (uint8_t i = 0; i < RAM_SIZE; i++)
+  {
+    ramBuffer[i] = Wire.read();
+  }
 }
 
 void DS1307::getDateTime( 
@@ -90,10 +114,8 @@ void DS1307::getDateTime(
   bool *twelveHourMode,
   bool *ampm )
 {
-  // Reset the register pointer
-  Wire.beginTransmission(DS1307_I2C_ADDRESS);
-  Wire.write((uint8_t)0);
-  Wire.endTransmission();
+  setRegisterPointer(0x00);
+
   Wire.requestFrom(DS1307_I2C_ADDRESS, 7);
 
   *second     = bcdToDec(Wire.read() & 0x7f); // Mask out the CH bit
@@ -105,22 +127,31 @@ void DS1307::getDateTime(
   *year       = bcdToDec(Wire.read());
   *twelveHourMode = (*hour & 0x40) == 0 ? false : true;
   
-  if( *twelveHourMode ) {
+  if (*twelveHourMode) 
+  {
     *ampm = (*hour & 0x20) == 0 ? false : true;
     *hour = bcdToDec(*hour & 0x1f);
   }
-  else {
+  else 
+  {
     *hour = bcdToDec(*hour & 0x3f);
     *ampm = *hour >= 12 ? true : false;
   }
 }
 
-uint8_t DS1307::decToBcd( uint8_t val )
+void DS1307::setRegisterPointer(uint8_t val)
+{
+  Wire.beginTransmission(DS1307_I2C_ADDRESS);
+  Wire.write(val);
+  Wire.endTransmission();
+}
+
+uint8_t DS1307::decToBcd(uint8_t val)
 {
   return ((val/10*16) + (val%10));
 }
 
-uint8_t DS1307::bcdToDec( uint8_t val )
+uint8_t DS1307::bcdToDec(uint8_t val)
 {
   return ((val/16*10) + (val%16));
 }
