@@ -242,12 +242,14 @@ void mapButtonHandlers()
   timeButtonHandlerMap[SET_TIME] = &setModeTimeButtonHandler;
   timeButtonHandlerMap[RUN_BLANK] = &runBlankModeButtonHandler;
   timeButtonHandlerMap[SET_ALARM] = &setModeTimeButtonHandler;
+  timeButtonHandlerMap[RUN_ALARM] = &runAlarmModeButtonHandler;
 
   // Alarm button handlers
   alarmButtonHandlerMap[RUN] = &runModeAlarmButtonHandler;
   alarmButtonHandlerMap[SET_TIME] = &setModeAlarmButtonHandler;
   alarmButtonHandlerMap[RUN_BLANK] = &runBlankModeButtonHandler;
   alarmButtonHandlerMap[SET_ALARM] = &setModeAlarmButtonHandler;
+  alarmButtonHandlerMap[RUN_ALARM] = &runAlarmModeButtonHandler;
 }
 
 /**
@@ -355,7 +357,7 @@ void runAlarmModeHandler()
   updateTime();
 
   Audio.singleBeep();
-  delay(DUR_ET);
+  delay(DUR_E);
 }
 
 /*******************************************************************************
@@ -437,6 +439,13 @@ void runBlankModeButtonHandler(boolean longPress)
     unblankTime = millis();
     enableDisplayWithoutLEDs();
   }
+}
+
+void runAlarmModeButtonHandler(boolean longPress)
+{
+  // Turn off the alarm
+  alarmRecentlySnuffed = true;
+  changeRunMode(RUN);
 }
 
 /*******************************************************************************
@@ -734,11 +743,18 @@ void updateTime()
  */
 void checkAlarm(byte currentHours, byte currentMinutes, boolean currentAmPm, boolean twelveHourMode)
 {
-  if (currentRunMode == RUN_ALARM && currentMinutes != alarmMinutes)
+  if (currentMinutes != alarmMinutes)
   {
+    if (alarmRecentlySnuffed)
+      alarmRecentlySnuffed = false;
+
     // Turn off the alarm once a minute has passed if no button was pressed
-    changeRunMode(RUN);
+    if (currentRunMode == RUN_ALARM)
+      changeRunMode(RUN);
+
+    return;
   }
+  
   if (alarmEnabled && 
       (currentRunMode == RUN || currentRunMode == RUN_BLANK) && 
       !alarmRecentlySnuffed &&
