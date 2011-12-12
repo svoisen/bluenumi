@@ -54,7 +54,7 @@
  * Debug Defines
  *
  ******************************************************************************/
-//#define DEBUG true
+#define DEBUG true
 #define DEBUG_BAUD 9600
 
 /*******************************************************************************
@@ -166,9 +166,22 @@ Serial.println("RTC not running; switching to set time mode");
     DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, 
         timeSetTwelveHourMode, timeSetAmPm, true, 0x10);
 
+    // Set default alarm settings
+    saveAlarmToRam();
+
     // Clock is not running, probably powering up for the first time, change 
     // mode to set time
     changeRunMode(SET_TIME);
+  }
+  else
+  {
+    getAlarmFromRam();
+#if DEBUG
+Serial.println("Got alarm settings from RAM");
+Serial.print(alarmHours);
+Serial.print(":");
+Serial.println(alarmMinutes);
+#endif
   }
 }
 
@@ -261,7 +274,6 @@ void changeRunMode(enum RunMode newMode)
   switch (newMode)
   {
     case SET_TIME:
-      Audio.playMelody(&TONE_UP_MELODY);
       LEDs.setEnabled(false);
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm, &timeSetTwelveHourMode);
       changeSetMode(NONE);
@@ -320,6 +332,7 @@ void setTimeModeHandler()
 
 void setAlarmModeHandler()
 {
+  // Call the set mode sub-mode handlers
   setModeHandlerMap[currentSetMode]();
 }
 
@@ -386,6 +399,9 @@ void setModeTimeButtonHandler(boolean longPress)
   }
   else
   {
+#if DEBUG
+Serial.println("Cycle current mode");
+#endif
     cycleCurrentSetMode();
   }
 }
@@ -395,10 +411,17 @@ void setModeAlarmButtonHandler(boolean longPress)
   if (longPress && currentRunMode == SET_ALARM)
   {
     enableEntireDisplay();
+    alarmHours = timeSetHours;
+    alarmMinutes = timeSetMinutes;
+    alarmAmPm = timeSetAmPm;
+    saveAlarmToRam();
     changeRunMode(RUN);
   }
   else
   {
+#if DEBUG
+Serial.println("Next set mode");
+#endif
     proceedToNextSetMode();
   }
 }
@@ -626,7 +649,9 @@ void outputSetTime()
 
 void cycleCurrentSetMode()
 {
-  skipNextBlink = true;
+  if (currentSetMode != NONE)
+    skipNextBlink = true;
+
   setModeCycleHandlerMap[currentSetMode]();
 }
 
@@ -650,6 +675,7 @@ void toggleAlarm()
   alarmEnabled = !alarmEnabled;
   digitalWrite(ALRM_PIN, alarmEnabled);
   Audio.singleBeep();
+  saveAlarmToRam();
 }
 
 /**
@@ -735,6 +761,32 @@ boolean fetchTime(byte* hour, byte* minute, boolean* ampm, boolean* twelveHourMo
       &month, &year, (bool*)twelveHourMode, (bool*)ampm);
   
   return true;
+}
+
+/**
+ * Alarm settings preservation scheme:
+ *
+ * Byte 0 = Hours
+ * Byte 1 = Minutes
+ * Byte 2 = AM/PM
+ * Byte 3 = Enabled?
+ */
+void saveAlarmToRam()
+{
+  DS1307RTC.ramBuffer[0] = alarmHours;
+  DS1307RTC.ramBuffer[1] = alarmMinutes;
+  DS1307RTC.ramBuffer[2] = alarmAmPm;
+  DS1307RTC.ramBuffer[3] = alarmEnabled;
+  DS1307RTC.saveRamData(4);
+}
+
+void getAlarmFromRam()
+{
+  DS1307RTC.getRamData(4);
+  alarmHours = (byte) DS1307RTC.ramBuffer[0];
+  alarmMinutes = (byte) DS1307RTC.ramBuffer[1];
+  alarmAmPm = (boolean) DS1307RTC.ramBuffer[2];
+  alarmEnabled = (boolean) DS1307RTC.ramBuffer[3];
 }
 
 void processDualButtonPress()

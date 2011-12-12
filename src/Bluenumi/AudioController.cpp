@@ -52,11 +52,6 @@ void AudioController::playMelody(Melody *melody)
   LEDs.setEnabled(true);
 }
 
-/*void AudioController::playMelodyBackwards(Melody *melody)
-{
-  //for (int i = 0; i < melody->notes
-}*/
-
 inline void AudioController::playNote(uint16_t note, uint16_t duration)
 {
   tone(PIEZO_PIN, note);

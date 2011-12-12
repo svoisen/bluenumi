@@ -22,7 +22,7 @@
 
 #include <Arduino.h>
 
-#define NUM_RUN_MODES 4
+#define NUM_RUN_MODES 5
 #define NUM_SET_MODES 7
 
 enum RunMode 

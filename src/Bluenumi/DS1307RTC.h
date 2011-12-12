@@ -21,10 +21,12 @@
 #ifndef DS1307RTC_H_
 #define DS1307RTC_H_
 
-#include "Wire.h"
+#include <Arduino.h>
+#include <Wire.h>
 #include <inttypes.h>
 
 #define DS1307_I2C_ADDRESS 0x68
+#define RAM_SIZE 56
 
 class DS1307
 {
@@ -45,13 +47,19 @@ class DS1307
     
     DS1307();
     void begin();
-    void setDateTime(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool, bool, bool, uint8_t);
-    void getDateTime(uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, bool*, bool*);
+    void setDateTime(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, 
+        uint8_t, bool, bool, bool, uint8_t);
+    void getDateTime(uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, 
+        uint8_t*, bool*, bool*);
+    void saveRamData(uint8_t);
+    void getRamData(uint8_t);
     bool isRunning();
+    uint8_t ramBuffer[RAM_SIZE];
     
   private:
     uint8_t decToBcd(uint8_t);
     uint8_t bcdToDec(uint8_t);
+    void setRegisterPointer(uint8_t val);
 };
 
 extern DS1307 DS1307RTC;
