@@ -69,11 +69,13 @@ class SegmentDisplay
     void outputDigits(uint8_t, uint8_t, uint8_t, uint8_t);
     void outputBytes(uint8_t, uint8_t, uint8_t, uint8_t);
     void setEnabled(bool);
+    bool getEnabled();
     uint8_t mapBcd(uint8_t);
 
   private:
     static uint8_t bcdMap[10];
     void shift(uint8_t);
+    bool enabled;
 };
 
 extern SegmentDisplay Display;

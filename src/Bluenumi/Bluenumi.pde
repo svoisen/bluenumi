@@ -340,10 +340,10 @@ void setAlarmModeHandler()
 
 void runBlankModeHandler()
 {
+  updateTime();
+
   if (unblankTime == 0)
     return;
-
-  updateTime();
 
   if (millis() - unblankTime > UNBLANK_INTERVAL)
   {
@@ -729,8 +729,11 @@ void updateTime()
 
     fetchTime(&hour, &minute, &ampm, &twelveHourMode);
 
-    Display.outputTime(hour, minute);
-    digitalWrite(AMPM_PIN, ampm);
+    if (Display.getEnabled())
+    {
+      Display.outputTime(hour, minute);
+      digitalWrite(AMPM_PIN, ampm);
+    }
 
     checkAlarm(hour, minute, ampm, twelveHourMode);
 

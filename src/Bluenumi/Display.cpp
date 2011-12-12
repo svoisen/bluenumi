@@ -32,6 +32,7 @@ uint8_t SegmentDisplay::bcdMap[10] = {
 
 SegmentDisplay::SegmentDisplay()
 {
+  enabled = false;
 }
 
 void SegmentDisplay::begin()
@@ -77,9 +78,15 @@ void SegmentDisplay::outputBytes(
   digitalWrite(LATCH_PIN, HIGH);
 }
 
-void SegmentDisplay::setEnabled(bool enabled)
+void SegmentDisplay::setEnabled(bool val)
 {
-  digitalWrite(OE_PIN, enabled ? LOW : HIGH);
+  enabled = val;
+  digitalWrite(OE_PIN, !enabled);
+}
+
+bool SegmentDisplay::getEnabled()
+{
+  return enabled;
 }
 
 uint8_t SegmentDisplay::mapBcd(uint8_t input)
