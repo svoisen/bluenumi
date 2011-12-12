@@ -78,12 +78,14 @@ bool DS1307::isRunning()
   return true;
 }
 
-void DS1307::setRamData()
+void DS1307::saveRamData(uint8_t numBytes)
 {
+  numBytes = min(numBytes, RAM_SIZE);
+
   Wire.beginTransmission(DS1307_I2C_ADDRESS);
   Wire.write((uint8_t) 0x08);
 
-  for (uint8_t i = 0; i < RAM_SIZE; i++)
+  for (uint8_t i = 0; i < numBytes; i++)
   {
     Wire.write(ramBuffer[i]);
   }
@@ -91,13 +93,15 @@ void DS1307::setRamData()
   Wire.endTransmission();
 }
 
-void DS1307::getRamData()
+void DS1307::getRamData(uint8_t numBytes)
 {
+  numBytes = min(numBytes, RAM_SIZE);
+
   setRegisterPointer(0x08);
 
   Wire.requestFrom(DS1307_I2C_ADDRESS, RAM_SIZE);
 
-  for (uint8_t i = 0; i < RAM_SIZE; i++)
+  for (uint8_t i = 0; i < numBytes; i++)
   {
     ramBuffer[i] = Wire.read();
   }
