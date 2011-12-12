@@ -54,8 +54,8 @@
  * Debug Defines
  *
  ******************************************************************************/
-#define DEBUG true
-#define DEBUG_BAUD 9600
+//#define DEBUG true
+//#define DEBUG_BAUD 9600
 
 /*******************************************************************************
  *
@@ -154,7 +154,7 @@ Serial.println("Firmware Version 001");
   mapCycleHandlers();
 
   // Set alarm indicator
-  digitalWrite(ALRM_PIN, alarmEnabled);
+  updateAlarmIndicator();
   
   // Check CH bit in DS1307, if it's 1 then the clock is not started
   if (!DS1307RTC.isRunning()) 
@@ -663,8 +663,11 @@ void proceedToNextSetMode()
   // For 24 hour mode, skip setting AM/PM
   byte divisor = timeSetTwelveHourMode ? NUM_SET_MODES : NUM_SET_MODES - 1;
 
+  // For alarm set, skip 12/24 hour setting
+  byte increment = (currentSetMode == NONE && currentRunMode == SET_ALARM) ? 2 : 1;
+
   // Warning: This assumes the enum values are listed in order of procession!
-  currentSetMode = (SetMode) ((currentSetMode + 1) % divisor);
+  currentSetMode = (SetMode) ((currentSetMode + increment) % divisor);
 }
 
 /**
@@ -673,7 +676,7 @@ void proceedToNextSetMode()
 void toggleAlarm()
 {
   alarmEnabled = !alarmEnabled;
-  digitalWrite(ALRM_PIN, alarmEnabled);
+  updateAlarmIndicator();
   Audio.singleBeep();
   saveAlarmToRam();
 }
@@ -787,6 +790,7 @@ void getAlarmFromRam()
   alarmMinutes = (byte) DS1307RTC.ramBuffer[1];
   alarmAmPm = (boolean) DS1307RTC.ramBuffer[2];
   alarmEnabled = (boolean) DS1307RTC.ramBuffer[3];
+  updateAlarmIndicator();
 }
 
 void processDualButtonPress()
@@ -881,8 +885,18 @@ void enableEntireDisplay()
 void enableDisplayWithoutLEDs()
 {
   Display.setEnabled(true);
-  digitalWrite(AMPM_PIN, timeSetAmPm ? HIGH : LOW);
-  digitalWrite(ALRM_PIN, alarmEnabled ? HIGH : LOW);
+  updateAlarmIndicator();
+  updateAmPmIndicator();
+}
+
+void updateAmPmIndicator()
+{
+  digitalWrite(AMPM_PIN, timeSetAmPm);
+}
+
+void updateAlarmIndicator()
+{
+  digitalWrite(ALRM_PIN, alarmEnabled);
 }
 
 /**
