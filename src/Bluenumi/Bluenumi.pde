@@ -46,6 +46,8 @@
 
 #define UNBLANK_INTERVAL 3000 // Length of time to temp unblank display in 
                               // run blank mode
+#define ALARM_SHOW_INTERVAL 2000 // Length of time to flash alarm time when
+                                 // enabling the alarm
 
 /*******************************************************************************
  *
@@ -409,6 +411,7 @@ void setModeTimeButtonHandler(boolean longPress)
     {
       alarmHours = alarmHours % 12;
       alarmAmPm = true;
+      saveAlarmToRam();
     }
 
     DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, 
@@ -703,8 +706,21 @@ void toggleAlarm()
 {
   alarmEnabled = !alarmEnabled;
   updateAlarmIndicator();
-  alarmEnabled ? Audio.singleBeep() : Audio.doubleBeep();
   saveAlarmToRam();
+
+  if (alarmEnabled)
+  {
+    Audio.singleBeep();
+    Display.outputTime(alarmHours, alarmMinutes);
+    digitalWrite(AMPM_PIN, alarmAmPm);
+    LEDs.pause();
+    delay(ALARM_SHOW_INTERVAL);
+    LEDs.resume();
+  }
+  else
+  {
+    Audio.doubleBeep();
+  }
 }
 
 /**
