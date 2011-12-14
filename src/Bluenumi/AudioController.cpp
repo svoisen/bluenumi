@@ -32,6 +32,11 @@ void AudioController::singleBeep()
 
 void AudioController::doubleBeep()
 {
+  disableDisplays();
+  playNote(NOTE_BEEP, DUR_ET);
+  delay(DUR_ET);
+  playNote(NOTE_BEEP, DUR_ET);
+  enableDisplays();
 }
 
 void AudioController::playMelody(Melody *melody)

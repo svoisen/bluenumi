@@ -281,6 +281,7 @@ void changeRunMode(enum RunMode newMode)
       break;
 
     case SET_ALARM:
+      Audio.playMelody(&TONE_UP2_MELODY);
       LEDs.setEnabled(false);
       timeSetHours = alarmHours;
       timeSetMinutes = alarmMinutes;
@@ -290,7 +291,13 @@ void changeRunMode(enum RunMode newMode)
 
     case RUN:
       if (currentRunMode == SET_TIME)
+      {
         Audio.playMelodyBackwards(&TONE_UP_MELODY);
+      }
+      else if (currentRunMode == SET_ALARM)
+      {
+        Audio.playMelodyBackwards(&TONE_UP2_MELODY);
+      }
 
       enableEntireDisplay();
       break;
@@ -696,7 +703,7 @@ void toggleAlarm()
 {
   alarmEnabled = !alarmEnabled;
   updateAlarmIndicator();
-  Audio.singleBeep();
+  alarmEnabled ? Audio.singleBeep() : Audio.doubleBeep();
   saveAlarmToRam();
 }
 

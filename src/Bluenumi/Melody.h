@@ -137,8 +137,7 @@ struct Melody
   }
 };
 
-extern uint16_t TONE_UP_NOTES[];
-extern uint16_t TONE_UP_DURATIONS[];
 extern Melody TONE_UP_MELODY;
+extern Melody TONE_UP2_MELODY;
 
 #endif // MELODY_H_
