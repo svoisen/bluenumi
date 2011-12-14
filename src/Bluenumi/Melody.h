@@ -111,6 +111,8 @@
 #define NOTE_D8  4699
 #define NOTE_DS8 4978
 
+#define NOTE_BEEP 2048 // Highest dB for the piezo speaker
+
 // Defines for the duration of the notes (in ms)
 #define DUR_WH    1024
 #define DUR_H      512

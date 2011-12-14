@@ -25,13 +25,9 @@ AudioController::AudioController()
 
 void AudioController::singleBeep()
 {
-  Display.setEnabled(false);
-  LEDs.setEnabled(false);
-
-  playNote(2048, DUR_ET);
-
-  Display.setEnabled(true);
-  LEDs.setEnabled(true);
+  disableDisplays();
+  playNote(NOTE_BEEP, DUR_ET);
+  enableDisplays();
 }
 
 void AudioController::doubleBeep()
@@ -40,16 +36,26 @@ void AudioController::doubleBeep()
 
 void AudioController::playMelody(Melody *melody)
 {
-  Display.setEnabled(false);
-  LEDs.setEnabled(false);
+  disableDisplays();
 
   for (int i = 0; i < melody->length; i++)
   {
     playNote(melody->notes[i], melody->durations[i]);
   }
 
-  Display.setEnabled(true);
-  LEDs.setEnabled(true);
+  enableDisplays();
+}
+
+void AudioController::playMelodyBackwards(Melody *melody)
+{
+  disableDisplays();
+
+  for (int i = melody->length - 1; i >= 0; i--)
+  {
+    playNote(melody->notes[i], melody->durations[i]);
+  }
+
+  enableDisplays();
 }
 
 inline void AudioController::playNote(uint16_t note, uint16_t duration)
@@ -57,6 +63,18 @@ inline void AudioController::playNote(uint16_t note, uint16_t duration)
   tone(PIEZO_PIN, note);
   delay(duration);
   noTone(PIEZO_PIN);
+}
+
+inline void AudioController::disableDisplays()
+{
+  Display.setEnabled(false);
+  LEDs.setEnabled(false);
+}
+
+inline void AudioController::enableDisplays()
+{
+  Display.setEnabled(true);
+  LEDs.setEnabled(true);
 }
 
 AudioController Audio = AudioController();

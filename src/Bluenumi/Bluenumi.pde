@@ -40,7 +40,7 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 40 // Interval to wait when debouncing buttons
+#define DEBOUNCE_INTERVAL 70 // Interval to wait when debouncing buttons
 #define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
@@ -274,6 +274,7 @@ void changeRunMode(enum RunMode newMode)
   switch (newMode)
   {
     case SET_TIME:
+      Audio.playMelody(&TONE_UP_MELODY);
       LEDs.setEnabled(false);
       fetchTime(&timeSetHours, &timeSetMinutes, &timeSetAmPm, &timeSetTwelveHourMode);
       changeSetMode(NONE);
@@ -288,6 +289,9 @@ void changeRunMode(enum RunMode newMode)
       break;
 
     case RUN:
+      if (currentRunMode == SET_TIME)
+        Audio.playMelodyBackwards(&TONE_UP_MELODY);
+
       enableEntireDisplay();
       break;
 
@@ -390,6 +394,14 @@ void setModeTimeButtonHandler(boolean longPress)
     if (timeSetTwelveHourMode && timeSetHours > 12)
     {
       timeSetHours = timeSetHours % 12;
+      timeSetAmPm = true;
+    }
+
+    // Edge case for alarm
+    if (timeSetTwelveHourMode && alarmHours > 12)
+    {
+      alarmHours = alarmHours % 12;
+      alarmAmPm = true;
     }
 
     DS1307RTC.setDateTime(0, timeSetMinutes, timeSetHours, 1, 1, 1, 0, 
@@ -697,11 +709,13 @@ boolean blinkShouldBeOn()
   static unsigned long lastBlinkTime = 0;
   static boolean blinkOn = true;
 
+  if (skipNextBlink)
+    blinkOn = true;
+
   if (millis() - lastBlinkTime >= BLINK_DELAY) 
   {
     if (skipNextBlink)
     {
-      blinkOn = true;
       skipNextBlink = false;
     }
     else

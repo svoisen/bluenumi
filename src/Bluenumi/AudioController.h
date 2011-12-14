@@ -31,9 +31,12 @@ class AudioController
     void singleBeep();
     void doubleBeep();
     void playMelody(Melody*);
+    void playMelodyBackwards(Melody*);
 
   private:
     inline void playNote(uint16_t, uint16_t);
+    inline void disableDisplays();
+    inline void enableDisplays();
     void outputTone(int, int);
 };
 
