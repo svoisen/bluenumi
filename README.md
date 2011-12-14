@@ -3,12 +3,14 @@ Bluenumi Clock
 
 Bluenumi is a custom-designed 4-digit numitron clock featuring:
 
-* A DS1307 RTC with backup battery for accurate timekeeping even during loss of power
-* Blue LED underlighting for each digit, with customizable light patterns
-* Arduino programming compatibility, using an Atmega 328P microcontroller at 5V/16mHz
-* AM/PM indicator light
-* Alarm indicator light
-* Programmable alarm 
+* Retro glowing numitron display featuring Soviet-era IV-9 numitron tubes
+* A DS1307 real time clock with backup battery for accurate timekeeping and alarm memory preservation during loss of power
+* Blue LED underlighting for each digit, with customizable fading light patterns
+* Programmable alarm
+* 12- or 24-hour operating mode with AM/PM indicator light
+* Easy display blanking for nighttime use and tube life preservation
+* 100% open source hardware and software
+* Arduino programming compatibility using standard RS-232 serial
 
 For more information on Bluenumi, visit: [http://gizmologi.st](http://gizmologi.st)
 
@@ -17,13 +19,13 @@ Firmware License
 
 Copyright (C) 2009 - 2011 [Sean Voisen](http://sean.voisen.org)
 
-Firmware code is released under the GNU LGPL:
+Firmware code is released under the GNU GPL version 3:
 
-This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation; either version 2.1 of the License, or (at your option) any later version.
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 Schematics and Board Layout License
 -----------------------------------
