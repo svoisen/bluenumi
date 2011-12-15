@@ -400,17 +400,17 @@ void setModeTimeButtonHandler(boolean longPress)
   if (longPress && currentRunMode == SET_TIME)
   {
     // Edge case that can happen when switching between 12/24 hour mode
-    if (timeSetTwelveHourMode && timeSetHours > 12)
+    if (timeSetTwelveHourMode && (timeSetHours > 12 || timeSetHours == 0))
     {
-      timeSetHours = timeSetHours % 12;
-      timeSetAmPm = true;
+      timeSetHours = timeSetHours == 0 ? 12 : timeSetHours % 12;
+      timeSetAmPm = timeSetHours > 12;
     }
 
     // Edge case for alarm
-    if (timeSetTwelveHourMode && alarmHours > 12)
+    if (timeSetTwelveHourMode && (alarmHours > 12 || alarmHours == 0))
     {
-      alarmHours = alarmHours % 12;
-      alarmAmPm = true;
+      alarmHours = alarmHours == 0 ? 12 : alarmHours % 12;
+      alarmAmPm = alarmHours > 12;
       saveAlarmToRam();
     }
 
