@@ -59,7 +59,7 @@ class SegmentDisplay
       P     = 0b01011101,
       H     = 0b01101101,
       R     = 0b00000101,
-      M     = 0b00110101,
+      M     = 0b01111001, //0b00110101, lower case M looks a bit weird
       DASH  = 0b00000100
     };
     
