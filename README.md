@@ -10,7 +10,7 @@ Bluenumi is a custom-designed 4-digit numitron clock featuring:
 * 12- or 24-hour operating mode with AM/PM indicator light
 * Easy display blanking for nighttime use and tube life preservation
 * 100% open source hardware and software
-* Arduino programming compatibility using standard RS-232 serial
+* Arduino programming compatibility using standard TTL serial
 
 For more information on Bluenumi, visit: [http://gizmologi.st](http://gizmologi.st)
 
