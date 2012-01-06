@@ -74,7 +74,7 @@ void LEDController::mapHandlers()
 
 void LEDController::breatheHandler()
 {
-  float val = calculateBreatheVal(PI/2.0, 0.0);
+  float val = calculateBreatheVal(PI/2.0, 0.0, 4000);
   analogWrite(SECONDS0_PIN, val);
   analogWrite(SECONDS1_PIN, val);
   analogWrite(SECONDS2_PIN, val);
@@ -84,15 +84,16 @@ void LEDController::breatheHandler()
 void LEDController::rollingBreatheHandler()
 {
   float freqAdj = PI/2.0;
-  analogWrite(SECONDS3_PIN, calculateBreatheVal(freqAdj, 0.0));
-  analogWrite(SECONDS2_PIN, calculateBreatheVal(freqAdj, PI/4.0));
-  analogWrite(SECONDS1_PIN, calculateBreatheVal(freqAdj, PI/2.0)); 
-  analogWrite(SECONDS0_PIN, calculateBreatheVal(freqAdj, 3*PI/4.0));
+  analogWrite(SECONDS3_PIN, calculateBreatheVal(freqAdj, 0.0, 4000));
+  analogWrite(SECONDS2_PIN, calculateBreatheVal(freqAdj, PI/4.0, 4000));
+  analogWrite(SECONDS1_PIN, calculateBreatheVal(freqAdj, PI/2.0, 4000)); 
+  analogWrite(SECONDS0_PIN, calculateBreatheVal(freqAdj, 3*PI/4.0, 4000));
 }
 
-float LEDController::calculateBreatheVal(float frequencyAdjust, float offset)
+float LEDController::calculateBreatheVal(float frequencyAdjust, float offset, int periodicity)
 {
-  return (exp(sin(millis()/1000.0*frequencyAdjust + offset)) - 0.36787944)*108.0;
+  float val = (millis() % periodicity) / 1000.0;
+  return (exp(sin(val * frequencyAdjust + offset)) - 0.36787944)*108.0;
 }
 
 LEDController LEDs = LEDController();

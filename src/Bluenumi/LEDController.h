@@ -56,7 +56,7 @@ class LEDController
     PatternHandler patternHandlerMap[2];
     void breatheHandler();
     void rollingBreatheHandler();
-    float calculateBreatheVal(float, float);
+    float calculateBreatheVal(float, float, int);
 };
 
 extern LEDController LEDs;
