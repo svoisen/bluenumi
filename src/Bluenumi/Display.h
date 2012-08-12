@@ -23,7 +23,7 @@
 
 #define DATA_PIN 13
 #define LATCH_PIN 12
-#define CLK_PIN 6
+#define CLK_PIN 11
 #define OE_PIN 7
 
 /**

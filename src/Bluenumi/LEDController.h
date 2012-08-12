@@ -24,8 +24,8 @@
 
 #define SECONDS0_PIN 9 // LED under 10s hour
 #define SECONDS1_PIN 10 // LED under 1s hour
-#define SECONDS2_PIN 11 // LED under 10s minute
-#define SECONDS3_PIN 3 // LED under 1s minute
+#define SECONDS2_PIN 6 // LED under 10s minute
+#define SECONDS3_PIN 5 // LED under 1s minute
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object)->*(ptrToMember))
 

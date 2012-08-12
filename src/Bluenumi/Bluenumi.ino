@@ -29,11 +29,11 @@
  * Pin Mappings
  *
  ******************************************************************************/
-#define AMPM_PIN 1 // Both RX and used for AMPM indicator LED
-#define ALRM_PIN 0 // Both TX and used for alarm indicator LED
+#define AMPM_PIN 1 // Both TX and used for AMPM indicator LED
+#define ALRM_PIN 0 // Both RX and used for alarm indicator LED
 #define HZ_PIN 4 // 1 Hz pulse from DS1307 RTC
-#define TIME_BTN_PIN 5 // Time set/left button
-#define ALRM_BTN_PIN 2 // Alarm set/right button
+#define TIME_BTN_PIN 2 // Time set/left button
+#define ALRM_BTN_PIN 3 // Alarm set/right button
 
 /*******************************************************************************
  *
