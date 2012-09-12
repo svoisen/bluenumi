@@ -40,7 +40,7 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 70 // Interval to wait when debouncing buttons
+#define DEBOUNCE_INTERVAL 10 // Interval to wait when debouncing buttons
 #define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
@@ -137,7 +137,7 @@ Serial.println("Firmware Version 001");
   PCICR |= (1 << PCIE2);
   PCMSK2 |= (1 << PCINT18); // Alarm button
   PCMSK2 |= (1 << PCINT20); // RTC square wave
-  PCMSK2 |= (1 << PCINT21); // Time button
+  PCMSK2 |= (1 << PCINT19); // Time button
 
   // Start 2-wire communication with DS1307
   DS1307RTC.begin();

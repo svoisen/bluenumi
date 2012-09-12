@@ -24,9 +24,9 @@
 
 Bounce::Bounce(uint8_t pin, unsigned long interval_millis)
 {
-	interval(interval_millis);
-	previous_millis = millis();
-	state = digitalRead(pin);
+  interval(interval_millis);
+  previous_millis = millis();
+  state = digitalRead(pin);
   this->pin = pin;
 }
 
@@ -49,21 +49,21 @@ void Bounce::rebounce(unsigned long interval)
 
 int Bounce::update()
 {
-	if (debounce()) 
+  if (debounce()) 
   {
     rebounce(0);
     return stateChanged = 1;
   }
 
   // We need to rebounce, so simulate a state change
-	if (rebounce_millis && (millis() - previous_millis >= rebounce_millis)) 
+  if (rebounce_millis && (millis() - previous_millis >= rebounce_millis)) 
   {
     previous_millis = millis();
     rebounce(0);
     return stateChanged = 1;
-	}
+  }
 
-	return stateChanged = 0;
+  return stateChanged = 0;
 }
 
 unsigned long Bounce::duration()
@@ -73,14 +73,14 @@ unsigned long Bounce::duration()
 
 int Bounce::read()
 {
-	return (int)state;
+  return (int)state;
 }
 
 // Protected: debounces the pin
 int Bounce::debounce() 
 {
-	uint8_t newState = digitalRead(pin);
-	if (state != newState) 
+  uint8_t newState = digitalRead(pin);
+  if (state != newState) 
   {
     if (millis() - previous_millis >= interval_millis) 
     {
