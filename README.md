@@ -13,7 +13,9 @@ Bluenumi is a custom-designed 4-digit numitron clock featuring:
 * 100% open source hardware and software
 * Arduino programming compatibility using standard TTL serial
 
-For more information, or to order a clock kit or fully assembled, visit: [http://gizmologi.st](http://gizmologi.st). Parts list (BOM), assembly instructions, and user's guide are [available on the wiki](https://github.com/svoisen/bluenumi/wiki).
+For more information, or to order a clock kit or fully assembled, visit: [http://gizmologi.st](http://gizmologi.st). 
+
+Parts list (BOM), assembly instructions, and user's guide are [available on the wiki](https://github.com/svoisen/bluenumi/wiki).
 
 Images
 ------
