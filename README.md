@@ -3,7 +3,7 @@ Bluenumi Clock
 
 Bluenumi is a custom-designed 4-digit numitron clock featuring:
 
-* Retro glowing numitron display featuring Soviet-era IV-9 numitron tubes
+* Retro glowing numitron display featuring Russian IV-9 numitron tubes
 * A DS1307 real time clock with backup battery for accurate timekeeping and alarm memory preservation during loss of power
 * Blue LED underlighting for each digit, with pre-programmed fade patterns
 * Laser cut acrylic case
@@ -13,7 +13,7 @@ Bluenumi is a custom-designed 4-digit numitron clock featuring:
 * 100% open source hardware and software
 * Arduino programming compatibility using standard TTL serial
 
-For more information, or to order a clock kit or fully assembled, visit: [http://gizmologi.st](http://gizmologi.st). Parts list (BOM), assembly instructions, and user's guide are [available on the wiki](https://github.com/svoisen/bluenumi/wiki).
+For more information, or to order a clock kit or fully assembled, visit: [http://www.etsy.com/shop/VoisenDesign](http://www.etsy.com/shop/VoisenDesign). Parts list (BOM), assembly instructions, and user's guide are [available on the wiki](https://github.com/svoisen/bluenumi/wiki).
 
 Images
 ------
