@@ -15,6 +15,8 @@ Bluenumi is a custom-designed 4-digit numitron clock featuring:
 
 For more information, or to order a clock kit or fully assembled, visit: [http://www.etsy.com/shop/VoisenDesign](http://www.etsy.com/shop/VoisenDesign). Parts list (BOM), assembly instructions, and user's guide are [available on the wiki](https://github.com/svoisen/bluenumi/wiki).
 
+Parts list (BOM), assembly instructions, and user's guide are [available on the wiki](https://github.com/svoisen/bluenumi/wiki).
+
 Images
 ------
 
