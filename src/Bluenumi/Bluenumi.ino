@@ -40,7 +40,7 @@
  * Misc Defines
  *
  ******************************************************************************/
-#define DEBOUNCE_INTERVAL 10 // Interval to wait when debouncing buttons
+#define DEBOUNCE_INTERVAL 20 // Interval to wait when debouncing buttons
 #define LONG_PRESS 2000 // Length of time that qualifies as a long button press
 #define BLINK_DELAY 500 // Length of display blink on/off interval
 
