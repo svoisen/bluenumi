@@ -41,14 +41,14 @@ void AudioController::doubleBeep()
 
 void AudioController::playMelody(Melody *melody)
 {
-  disableDisplays();
+  /* disableDisplays(); */
 
   for (int i = 0; i < melody->length; i++)
   {
     playNote(melody->notes[i], melody->durations[i]);
   }
 
-  enableDisplays();
+  /* enableDisplays(); */
 }
 
 void AudioController::playMelodyBackwards(Melody *melody)
@@ -65,7 +65,13 @@ void AudioController::playMelodyBackwards(Melody *melody)
 
 inline void AudioController::playNote(uint16_t note, uint16_t duration)
 {
-  tone(PIEZO_PIN, note);
+  if (note == NOTE_RST) {
+    noTone(PIEZO_PIN);
+  }
+  else {
+    tone(PIEZO_PIN, note);
+  }
+
   delay(duration);
   noTone(PIEZO_PIN);
 }

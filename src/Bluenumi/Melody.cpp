@@ -25,3 +25,80 @@ uint16_t TONE_UP2_NOTES[] = {NOTE_A5, NOTE_CS6, NOTE_E6};
 uint16_t TONE_UP2_DURATIONS[] = {DUR_QT, DUR_QT, DUR_QT};
 Melody TONE_UP2_MELODY = Melody(TONE_UP2_NOTES, TONE_UP2_DURATIONS, 3);
 
+uint16_t CASTLEVANIA_NOTES[] = {
+  NOTE_E4, // Q
+  NOTE_E4, // E
+  NOTE_E4, // Q
+  NOTE_E4, // E
+  NOTE_G4, // Q
+  NOTE_FS4, // Q
+  NOTE_A4, // Q
+  //
+  NOTE_E4, // Q
+  NOTE_E4, // E
+  NOTE_E4, // Q
+  NOTE_E4, // E
+  NOTE_G4, // Q
+  NOTE_FS4, // Q
+  NOTE_A4, // Q
+  //
+  NOTE_B4, // E
+  NOTE_G4, // E
+  NOTE_DS4, // E
+  NOTE_F4, // H 
+  NOTE_RST, // E
+  NOTE_E4, // E
+  NOTE_G3, // E
+  NOTE_A3, // E
+  //
+  NOTE_AS3, // H
+  NOTE_RST, // H
+  NOTE_RST, // E
+  NOTE_F3, // E
+  NOTE_GS3, // E
+  NOTE_AS3, // E
+  NOTE_F4, // DQ
+  NOTE_F4, // Q
+  NOTE_C4, // Q
+  NOTE_G3, // Q
+  NOTE_F3, // E
+  NOTE_E4 // Q
+};
+
+uint16_t CASTLEVANIA_DURATIONS[] = {
+  DUR_Q,
+  DUR_E,
+  DUR_Q,
+  DUR_E,
+  DUR_Q,
+  DUR_Q,
+  DUR_Q,
+  DUR_Q,
+  DUR_E,
+  DUR_Q,
+  DUR_E,
+  DUR_Q,
+  DUR_Q,
+  DUR_Q,
+  DUR_E, 
+  DUR_E, 
+  DUR_E, 
+  DUR_H, 
+  DUR_E, 
+  DUR_E, 
+  DUR_E, 
+  DUR_E, 
+  DUR_H, 
+  DUR_H,
+  DUR_E, 
+  DUR_E, 
+  DUR_E, 
+  DUR_E, 
+  DUR_DQ, 
+  DUR_Q, 
+  DUR_Q, 
+  DUR_Q,
+  DUR_E,
+  DUR_DQ
+};
+Melody CASTLEVANIA_MELODY = Melody(CASTLEVANIA_NOTES, CASTLEVANIA_DURATIONS, 34);

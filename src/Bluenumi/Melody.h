@@ -115,6 +115,7 @@
 
 // Defines for the duration of the notes (in ms)
 #define DUR_WH    1024
+#define DUR_DH     960
 #define DUR_H      512
 #define DUR_DQ     448
 #define DUR_Q      256
@@ -139,5 +140,6 @@ struct Melody
 
 extern Melody TONE_UP_MELODY;
 extern Melody TONE_UP2_MELODY;
+extern Melody CASTLEVANIA_MELODY;
 
 #endif // MELODY_H_

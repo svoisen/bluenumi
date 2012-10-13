@@ -85,7 +85,8 @@ unsigned long unblankTime = 0;
 volatile boolean displayDirty = true; 
 
 // Keeps track of current run mode (RUN, SET_TIME, etc.)
-enum RunMode currentRunMode = RUN;
+/* enum RunMode currentRunMode = RUN; */
+enum RunMode currentRunMode = RUN_ALARM;
 
 // Keeps track of current sub-mode when setting time and alarm
 enum SetMode currentSetMode = NONE;
@@ -367,8 +368,9 @@ void runAlarmModeHandler()
 {
   updateTime();
 
-  Audio.singleBeep();
-  delay(DUR_E);
+  /* Audio.singleBeep(); */
+  Audio.playMelody(&CASTLEVANIA_MELODY);
+  delay(DUR_H);
 }
 
 /*******************************************************************************
@@ -770,7 +772,7 @@ void updateTime()
       digitalWrite(AMPM_PIN, ampm);
     }
 
-    checkAlarm(hour, minute, ampm, twelveHourMode);
+    /* checkAlarm(hour, minute, ampm, twelveHourMode); */
 
     displayDirty = false;
   }
